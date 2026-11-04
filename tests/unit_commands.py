@@ -27,6 +27,7 @@ SCRIPT_GLOBS = [
     'tools/usb-wifi/package/scripts/*.sh', 'tools/usb-wifi/package/bin/*',
     'tools/usb-wifi/scripts/*.sh',
     'probe/package/bin/*.sh', 'probe/usb/*/*.sh',
+    'tools/stock-dump/*.sh',
 ]
 
 # mksh R43 builtins and default aliases.

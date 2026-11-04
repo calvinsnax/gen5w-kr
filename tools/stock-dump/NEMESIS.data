@@ -1,0 +1,7 @@
+[nemesis]
+version=1.0
+type=execute
+path=NEMESIS.sh
+id=gen5w.kr.stockdump
+name=Gen5W KR - copy stock system files to USB for porting (read-only)
+compat=gen5w

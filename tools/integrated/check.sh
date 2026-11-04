@@ -162,6 +162,13 @@ fact gpm_odex "$S_GPM"
 for f in framework/services.odex priv-app/SystemUI.odex lib/libCarPlayAudio.so app/Iap2ServerApp.odex app/HKMC_DiPO.odex app/HKMC_GPM.odex; do
     [ -f "$SYS/$f" ] && fact "md5:$f" "$(digest "$SYS/$f")"
 done
+# Every target unknown (none missing, none patched) means the whole build differs
+# from every registered stock set: an unregistered vehicle/build, i.e. a new
+# port. Re-flashing the official update cannot turn it into a registered one.
+UNREGISTERED=no
+case "$S_HOTSPOT:$S_SYSUI:$S_AUDIO:$S_IAP2:$S_DIPO:$S_GPM" in
+    unknown:unknown:unknown:unknown:unknown:unknown) UNREGISTERED=yes;; esac
+fact unregistered_build "$UNREGISTERED"
 
 check_progress 3 'Wi-Fi와 동글 확인 중'
 W_CODE=$(wireless_code)
@@ -264,10 +271,13 @@ warn() { WARN="$WARN
 owned() { [ -e "$SYS/etc/gen5w-kr-backup/$1" ]; }
 is_v035() { case "$1" in *-v035) return 0;; esac; return 1; }
 
+if [ "$UNREGISTERED" = yes ]; then
+    block "순정 파일 6개가 모두 등록된 원본과 다릅니다. 이 차종·빌드($(prop ro.build.product))는 아직 지원 목록에 없는 새 포트로 보이며, 이 파일들에 맞춘 패치가 없습니다. 공식 업데이트를 다시 해도 해결되지 않습니다. 설치하지 말고 GEN5W-REPORT의 CHECK.txt·CHECK.md를 차량 지원 요청에 첨부하세요."
+fi
 for s in "$S_IAP2" "$S_DIPO" "$S_GPM" "$S_SYSUI"; do
     is_v035 "$s" && { block '펌웨어가 V035로 보입니다. 공식 V039로 먼저 업데이트하세요.'; break; }
 done
-for pair in "Iap2ServerApp:$S_IAP2" "HKMC_DiPO:$S_DIPO" "HKMC_GPM:$S_GPM"; do
+[ "$UNREGISTERED" = yes ] || for pair in "Iap2ServerApp:$S_IAP2" "HKMC_DiPO:$S_DIPO" "HKMC_GPM:$S_GPM"; do
     case "${pair#*:}" in
         stock-v039) ;;
         patched-v039) owned bridge || block "${pair%%:*} 파일이 이미 바뀌어 있는데 이 도구의 백업이 없습니다. 공식 V039 업데이트로 순정 복구 후 다시 점검하세요.";;
@@ -279,11 +289,11 @@ for pair in "Iap2ServerApp:$S_IAP2" "HKMC_DiPO:$S_DIPO" "HKMC_GPM:$S_GPM"; do
     esac
 done
 # This tool never changes these two; a non-stock copy came from something else.
-case "$S_SYSUI" in
+[ "$UNREGISTERED" = yes ] || case "$S_SYSUI" in
     stock-*) ;;
     *) block "SystemUI(시동 동의 화면)가 순정이 아닙니다($S_SYSUI). 다른 도구가 바꾼 상태일 수 있습니다. 공식 V039 업데이트로 순정 복구 후 다시 점검하세요.";;
 esac
-case "$S_HOTSPOT" in
+[ "$UNREGISTERED" = yes ] || case "$S_HOTSPOT" in
     stock-*) ;;
     *) block "services.odex(시스템 핵심)가 순정이 아닙니다($S_HOTSPOT). 다른 도구가 바꾼 상태일 수 있습니다. 공식 업데이트로 순정 복구 후 다시 점검하세요.";;
 esac

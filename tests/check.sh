@@ -135,6 +135,18 @@ check 'services.odex reason' grep -q 'services.odex' "$U/GEN5W-REPORT/CHECK.md"
 stock; echo patched > "$S/framework/services.odex"
 check 'changed services.odex blocks' eval '! run'
 
+# A different vehicle's build (e.g. GL3HEV on the same V039.001.260902 string):
+# every target is unknown. Report a new port, not "re-flash the official update".
+for f in framework/services.odex priv-app/SystemUI.odex lib/libCarPlayAudio.so app/Iap2ServerApp.odex app/HKMC_GPM.odex; do echo other-vehicle > "$S/$f"; done
+printf 'other-vehicle\ncarplay_wireless\n' > "$S/app/HKMC_DiPO.odex"
+check 'unregistered build blocks' eval '! run'
+check 'unregistered build is recorded' grep -qx 'unregistered_build=yes' "$U/GEN5W-REPORT/CHECK.txt"
+check 'unregistered build says new port' grep -q '새 포트로 보이며' "$U/GEN5W-REPORT/CHECK.md"
+check 'unregistered build does not ask for a re-flash' eval '! grep -q "순정 복구 후 다시 점검" "$U/GEN5W-REPORT/CHECK.md"'
+check 'unregistered build keeps per-file hashes' grep -q '^md5:app/HKMC_GPM.odex=' "$U/GEN5W-REPORT/CHECK.txt"
+stock; echo junk > "$S/app/HKMC_GPM.odex"; run
+check 'single unknown file is not an unregistered build' grep -qx 'unregistered_build=no' "$U/GEN5W-REPORT/CHECK.txt"
+
 stock; echo stock > "$S/app/HKMC_DiPO.odex"
 check 'no wireless code still installable' run
 check 'no wireless code means wired-only' grep -q '유선 전용' "$U/GEN5W-REPORT/CHECK.md"

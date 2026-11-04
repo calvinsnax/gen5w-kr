@@ -52,11 +52,12 @@ cp packages/audio-format/bin/audio-patch packages/consent-timer/bin/sha256-check
 "$PY" -I tools/integrated/build.py --skip-native --variant check --dist dist --output dist/gen5w-kr-check
 
 # USB folders: copy the contents of one of these to the root of a USB drive
-mkdir -p dist/usb-probe-install/packages dist/usb-probe-collect dist/usb-detect
+mkdir -p dist/usb-probe-install/packages dist/usb-probe-collect dist/usb-detect dist/usb-stock-dump
 cp probe/usb/install/NEMESIS.data dist/usb-probe-install/
 cp dist/gen5w.kr.probe.zip dist/usb-probe-install/packages/
 cp probe/usb/collect/NEMESIS.data probe/usb/collect/NEMESIS.sh dist/usb-probe-collect/
 cp tools/usb-detect/NEMESIS.data tools/usb-detect/NEMESIS.sh dist/usb-detect/
+cp tools/stock-dump/NEMESIS.data tools/stock-dump/NEMESIS.sh dist/usb-stock-dump/
 git archive --format=zip --prefix=gen5w-kr-source/ -o dist/gen5w-kr-source.zip HEAD
 (cd dist && for z in *.zip; do md5sum "$z"; done) | tee dist/MD5SUMS
 (cd dist && for z in *.zip; do sha256sum "$z"; done) > dist/SHA256SUMS
