@@ -11,6 +11,7 @@ echo stock > "$W/fixture/original"; echo patched > "$W/fixture/patched"
 echo core > "$W/fixture/core"; echo utils > "$W/fixture/utils"
 echo opus > "$W/fixture/opus"
 echo stock35 > "$W/fixture/original35"; echo patched35 > "$W/fixture/patched35"
+echo stockgl3 > "$W/fixture/originalgl3"; echo patchedgl3 > "$W/fixture/patchedgl3"
 cat > "$W/pkg/scripts/recipe.sh" <<'EOF'
 AUDIO_RECIPE=test-1
 AUDIO_CORE_SHA=core
@@ -18,6 +19,7 @@ AUDIO_UTILS_SHA=utils
 AUDIO_OPUS_SHA=opus
 EOF
 sed 's/test-1/test35-1/' "$W/pkg/scripts/recipe.sh" > "$W/pkg/scripts/recipe-v035.sh"
+sed 's/test-1/testgl3-1/' "$W/pkg/scripts/recipe.sh" > "$W/pkg/scripts/recipe-v039gl3.sh"
 cat > "$W/bin/tool" <<'EOF'
 #!/bin/sh
 case "$1" in
@@ -39,6 +41,8 @@ exit 0
 EOF
 sed 's@/original@/original35@g;s@/patched@/patched35@g' "$W/bin/tool" > "$W/pkg/bin/audio-patch-v035"
 chmod +x "$W/pkg/bin/audio-patch-v035"
+sed 's@/original@/originalgl3@g;s@/patched@/patchedgl3@g' "$W/bin/tool" > "$W/pkg/bin/audio-patch-v039gl3"
+chmod 644 "$W/pkg/bin/audio-patch-v039gl3"
 cat > "$W/bin/mv" <<'EOF'
 #!/bin/sh
 if [ -f "$AUDIO_TEST_FIXTURE/fail-mv" ] && [ "$2" = "$AUDIO_TEST_SYS/lib/libCarPlayAudio.so" ]; then
@@ -145,6 +149,16 @@ rm -rf "$MARK"
 check 'audio V035 reinstall after reset' run post
 check 'audio V035 uninstall selected profile' run preun
 check 'audio V035 exact original restored' cmp -s "$TARGET" "$W/fixture/original35"
+cp "$W/fixture/originalgl3" "$TARGET"
+check 'audio GL3 profile automatically selected' run post
+check 'audio GL3 helper made executable' test -x "$W/pkg/bin/audio-patch-v039gl3"
+check 'audio GL3 selected patched bytes' cmp -s "$TARGET" "$W/fixture/patchedgl3"
+check 'audio GL3 owner records its recipe' test "$(cat "$PERSIST/owner")" = gen5w.kr.audio:testgl3-1
+check 'audio GL3 original retained' cmp -s "$PERSIST/original" "$W/fixture/originalgl3"
+rm -rf "$MARK"
+check 'audio GL3 reinstall after reset' run post
+check 'audio GL3 uninstall selected profile' run preun
+check 'audio GL3 exact original restored' cmp -s "$TARGET" "$W/fixture/originalgl3"
 # Firmware reinstall: the stock library and no system journal, but our runtime
 # copy still in /data. Removal drops it; reinstall works; a patched library
 # without its journal is never touched.

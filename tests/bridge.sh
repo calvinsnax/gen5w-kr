@@ -9,15 +9,17 @@ printf 'stock035\n' > "$W/fixture/v035-original"; printf 'patched035\n' > "$W/fi
 printf 'stock039\n' > "$W/fixture/v039-original"; printf 'patched039\n' > "$W/fixture/v039-patched"
 printf 'legacy035\n' > "$W/fixture/v035-legacy"
 printf 'legacy039\n' > "$W/fixture/v039-legacy"
+printf 'stockgl3\n' > "$W/fixture/v039gl3-original"; printf 'patchedgl3\n' > "$W/fixture/v039gl3-patched"
+printf 'legacygl3\n' > "$W/fixture/v039gl3-legacy"; printf 'apkgl3\n' > "$W/fixture/v039gl3-apk"
 printf 'apk035\n' > "$W/fixture/v035-apk"; printf 'apk039\n' > "$W/fixture/v039-apk"
-for version in v035 v039; do
+for version in v035 v039 v039gl3; do
     echo "dipo-$version-original" > "$W/fixture/dipo-$version-original"
     echo "dipo-$version-patched" > "$W/fixture/dipo-$version-patched"
     echo "dipo-$version-previous" > "$W/fixture/dipo-$version-previous"
     echo "dipo-$version-previous2" > "$W/fixture/dipo-$version-previous2"
     echo "dipo-$version-apk" > "$W/fixture/dipo-$version-apk"
 done
-for version in v035 v039; do
+for version in v035 v039 v039gl3; do
     echo "gpm-$version-original" > "$W/fixture/gpm-$version-original"
     echo "gpm-$version-patched" > "$W/fixture/gpm-$version-patched"
     echo "gpm-$version-apk" > "$W/fixture/gpm-$version-apk"
@@ -29,10 +31,13 @@ BRIDGE_DIPO_APK_V035_SHA=dipo-v035-apk
 BRIDGE_DIPO_APK_V039_SHA=dipo-v039-apk
 BRIDGE_GPM_APK_V035_SHA=gpm-v035-apk
 BRIDGE_GPM_APK_V039_SHA=gpm-v039-apk
+BRIDGE_APK_V039GL3_SHA=v039gl3-apk
+BRIDGE_DIPO_APK_V039GL3_SHA=dipo-v039gl3-apk
+BRIDGE_GPM_APK_V039GL3_SHA=gpm-v039gl3-apk
 BRIDGE_DIPO_PREVIOUS_V035_SHAS="dipo-v035-previous dipo-v035-previous2"
 BRIDGE_DIPO_PREVIOUS_V039_SHAS="dipo-v039-previous dipo-v039-previous2"
 EOF
-for version in v035 v039; do
+for version in v035 v039 v039gl3; do
 cat > "$W/pkg/bin/iap2-patch-$version" <<'EOF'
 #!/bin/sh
 version=${0##*-}
@@ -56,7 +61,7 @@ apply) cmp -s "$2" "$BRIDGE_TEST_FIXTURE/$version-original" && cp "$BRIDGE_TEST_
 esac
 EOF
 done
-for version in v035 v039; do
+for version in v035 v039 v039gl3; do
 cat > "$W/pkg/bin/dipo-patch-$version" <<'EOF'
 #!/bin/sh
 version=${0##*-}
@@ -68,7 +73,7 @@ apply) cmp -s "$2" "$BRIDGE_TEST_FIXTURE/dipo-$version-original" && cp "$BRIDGE_
 esac
 EOF
 done
-for version in v035 v039; do
+for version in v035 v039 v039gl3; do
 cat > "$W/pkg/bin/gpm-patch-$version" <<'EOF'
 #!/bin/sh
 version=${0##*-}
@@ -125,7 +130,7 @@ if run pre; then bad 'missing daemon payload refused'; else ok 'missing daemon p
 touch "$W/pkg/app/bridge.dex"
 if run pre; then bad 'missing host APK refused'; else ok 'missing host APK refused'; fi
 touch "$W/pkg/app/wireless-host.apk"
-for version in v035 v039; do
+for version in v035 v039 v039gl3; do
 cp "$W/fixture/$version-original" "$TARGET"; cp "$W/fixture/$version-apk" "$APK"
 cp "$W/fixture/dipo-$version-original" "$DIPO"; cp "$W/fixture/dipo-$version-apk" "$DIPOAPK"
 if [ -f "$W/pkg/bin/gpm-patch-$version" ]; then
@@ -145,6 +150,7 @@ fi
 check "$version DiPO metadata preserved" test "$(stat -c %a "$DIPO")" = 600
 check "$version metadata preserved" test "$(stat -c %a "$TARGET")" = 640
 check "$version durable original" cmp -s "$PERSIST/original" "$W/fixture/$version-original"
+check "$version owner records its profile" test "$(cat "$PERSIST/owner")" = "gen5w.kr.bridge:$version-1"
 check "$version durable DiPO original" cmp -s "$PERSIST/dipooriginal" "$W/fixture/dipo-$version-original"
 check "$version reinstall" run post
 rm -rf "$MARK"
@@ -177,6 +183,14 @@ cp "$W/fixture/gpm-$version-original" "$GPM"
 cp "$W/fixture/gpm-$version-apk" "$GPMAPK"
 
 done
+# Vehicle profiles never mix: a GL3 iAP2 ODEX with the reference vehicle's DiPO is skipped.
+cp "$W/fixture/v039gl3-original" "$TARGET"; cp "$W/fixture/v039gl3-apk" "$APK"
+cp "$W/fixture/dipo-v039-original" "$DIPO"; cp "$W/fixture/dipo-v039-apk" "$DIPOAPK"
+run pre; rc=$?; check 'GL3 iAP2 with reference DiPO is skip77' test "$rc" = 77
+check 'mixed profiles create no backup' test ! -d "$PERSIST"
+cp "$W/fixture/v039-original" "$TARGET"; cp "$W/fixture/v039-apk" "$APK"
+cp "$W/fixture/dipo-v039gl3-original" "$DIPO"; cp "$W/fixture/dipo-v039gl3-apk" "$DIPOAPK"
+run pre; rc=$?; check 'reference iAP2 with GL3 DiPO is skip77' test "$rc" = 77
 cp "$W/fixture/v039-original" "$TARGET"; cp "$W/fixture/v039-apk" "$APK"
 cp "$W/fixture/dipo-v039-original" "$DIPO"; cp "$W/fixture/dipo-v039-apk" "$DIPOAPK"
 echo unknown > "$TARGET"; run pre; rc=$?
@@ -383,6 +397,7 @@ check 'legacy control shim absent after update' cmp -s "$TARGET" "$W/fixture/v03
 check 'route-only capability removal restores exact original' eval 'run preun && cmp -s "$TARGET" "$W/fixture/v039-original"'
 
 # Upgrade both previously shipped DiPO recipes for both supported system versions.
+# Only profiles that shipped an earlier DiPO patch (GL3 never did).
 for version in v035 v039; do
     for legacy in previous previous2; do
         cp "$W/fixture/$version-original" "$TARGET"; cp "$W/fixture/$version-apk" "$APK"

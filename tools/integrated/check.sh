@@ -51,36 +51,35 @@ check_progress() {
 }
 
 # Verdict of the bundled verifiers for one target: stock-v039, patched-v039,
-# stock-v035, patched-v035, unknown or missing.
+# stock-v035, patched-v035, unknown or missing. Each verifier is TOOL:FIRMWARE;
+# vehicle profiles of one firmware (e.g. v039 and v039gl3) report the same name.
 verify() {
-    local file=$SYS/$1 dir=checks/$2/bin v39=$3 v35=$4 tool
+    local file=$SYS/$1 dir=checks/$2/bin pair tool label
     [ -f "$file" ] && [ ! -L "$file" ] || { echo missing; return; }
-    for tool in "$dir/$v39" "$dir/$v35"; do
-        [ -f "$tool" ] && [ ! -L "$tool" ] && chmod 755 "$tool" 2>/dev/null
+    shift 2
+    for pair in "$@"; do
+        tool=$dir/${pair%%:*}; label=${pair#*:}
+        [ -f "$tool" ] && [ ! -L "$tool" ] || continue
+        chmod 755 "$tool" 2>/dev/null
+        "$tool" original "$file" >/dev/null 2>&1 && { echo "stock-$label"; return; }
+        "$tool" patched "$file" >/dev/null 2>&1 && { echo "patched-$label"; return; }
     done
-    if [ -f "$dir/$v39" ]; then
-        "$dir/$v39" original "$file" >/dev/null 2>&1 && { echo stock-v039; return; }
-        "$dir/$v39" patched "$file" >/dev/null 2>&1 && { echo patched-v039; return; }
-    fi
-    if [ -f "$dir/$v35" ]; then
-        "$dir/$v35" original "$file" >/dev/null 2>&1 && { echo stock-v035; return; }
-        "$dir/$v35" patched "$file" >/dev/null 2>&1 && { echo patched-v035; return; }
-    fi
     echo unknown
 }
 # iAP2 has two distinct historical patches. Prefer the current capability-only
 # verifier and report the older service-control shim separately.
 verify_iap2() {
-    local file=$SYS/app/Iap2ServerApp.odex dir=checks/gen5w.kr.bridge/bin version kind tool
+    local file=$SYS/app/Iap2ServerApp.odex dir=checks/gen5w.kr.bridge/bin pair version label kind tool
     [ -f "$file" ] && [ ! -L "$file" ] || { echo missing; return; }
-    for version in v039 v035; do
+    for pair in v039:v039 v039gl3:v039 v035:v035; do
+        version=${pair%%:*}; label=${pair#*:}
         for kind in route iap2; do
             if [ "$kind" = route ]; then tool=$dir/iap2-route-patch-$version; else tool=$dir/iap2-patch-$version; fi
             [ -f "$tool" ] && [ ! -L "$tool" ] && chmod 755 "$tool" 2>/dev/null
             [ -x "$tool" ] || continue
-            "$tool" original "$file" >/dev/null 2>&1 && { echo stock-$version; return; }
+            "$tool" original "$file" >/dev/null 2>&1 && { echo "stock-$label"; return; }
             if "$tool" patched "$file" >/dev/null 2>&1; then
-                if [ "$kind" = route ]; then echo route-capability-$version; else echo legacy-control-$version; fi
+                if [ "$kind" = route ]; then echo "route-capability-$label"; else echo "legacy-control-$label"; fi
                 return
             fi
         done
@@ -88,12 +87,15 @@ verify_iap2() {
     echo unknown
 }
 # Boot-critical files no edition changes: compare with the stock SHA-256 only.
+# Arguments after the path are SHA256:FIRMWARE.
 verify_hash() {
-    local file=$SYS/$1 tool=checks/gen5w.kr.timer/bin/sha256-check
+    local file=$SYS/$1 tool=checks/gen5w.kr.timer/bin/sha256-check pair
     [ -f "$file" ] && [ ! -L "$file" ] || { echo missing; return; }
     [ -f "$tool" ] && [ ! -L "$tool" ] && chmod 755 "$tool" 2>/dev/null || { echo unknown; return; }
-    "$tool" verify "$file" "$2" >/dev/null 2>&1 && { echo stock-v039; return; }
-    "$tool" verify "$file" "$3" >/dev/null 2>&1 && { echo stock-v035; return; }
+    shift
+    for pair in "$@"; do
+        "$tool" verify "$file" "${pair%%:*}" >/dev/null 2>&1 && { echo "stock-${pair#*:}"; return; }
+    done
     echo unknown
 }
 # Passive only: the installer may briefly turn Wi-Fi on to look; this check never does.
@@ -147,12 +149,12 @@ case "$NEM_VER" in ''|*[!0-9.]*) NEM_VER=unknown;; esac
 fact nemesis_version "$NEM_VER"
 
 check_progress 2 '순정 파일 확인 중'
-S_HOTSPOT=$(verify_hash framework/services.odex 63cf432dd4597a916ce9faa0c26b5f7ad29affba3976cf4c8cf316dc16107c4f 64fe8286ff39ba52223bf04d7c98fe7e4c2579ad06a090f7a4b80a34faa1e0ca)
-S_SYSUI=$(verify_hash priv-app/SystemUI.odex 97e7e258df34d76ed61a714f83de4bf0fbc3d6b6188055c941ad2689f72595af 3de39c29f10c8db3ec786f59378f5b716b04e6be473b42989f40ef828ef0867b)
-S_AUDIO=$(verify lib/libCarPlayAudio.so gen5w.kr.audio audio-patch audio-patch-v035)
+S_HOTSPOT=$(verify_hash framework/services.odex 63cf432dd4597a916ce9faa0c26b5f7ad29affba3976cf4c8cf316dc16107c4f:v039 01f4f2da6236fd89991ab1ccaf58509c45e6e35cd46cef1970ad463c6984a402:v039 64fe8286ff39ba52223bf04d7c98fe7e4c2579ad06a090f7a4b80a34faa1e0ca:v035)
+S_SYSUI=$(verify_hash priv-app/SystemUI.odex 97e7e258df34d76ed61a714f83de4bf0fbc3d6b6188055c941ad2689f72595af:v039 5d9dbd223d149326522a3ba1b276c5f443024c502ed422b3344d5c47e3a603a3:v039 3de39c29f10c8db3ec786f59378f5b716b04e6be473b42989f40ef828ef0867b:v035)
+S_AUDIO=$(verify lib/libCarPlayAudio.so gen5w.kr.audio audio-patch:v039 audio-patch-v039gl3:v039 audio-patch-v035:v035)
 S_IAP2=$(verify_iap2)
-S_DIPO=$(verify app/HKMC_DiPO.odex gen5w.kr.bridge dipo-patch-v039 dipo-patch-v035)
-S_GPM=$(verify app/HKMC_GPM.odex gen5w.kr.bridge gpm-patch-v039 gpm-patch-v035)
+S_DIPO=$(verify app/HKMC_DiPO.odex gen5w.kr.bridge dipo-patch-v039:v039 dipo-patch-v039gl3:v039 dipo-patch-v035:v035)
+S_GPM=$(verify app/HKMC_GPM.odex gen5w.kr.bridge gpm-patch-v039:v039 gpm-patch-v039gl3:v039 gpm-patch-v035:v035)
 fact services_odex "$S_HOTSPOT"
 fact systemui_odex "$S_SYSUI"
 fact carplay_audio_so "$S_AUDIO"

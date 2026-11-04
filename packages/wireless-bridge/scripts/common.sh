@@ -87,7 +87,7 @@ inspect() {
         [ ! -L "$bridge_path" ] || { log 'FAIL bridge: symbolic link at managed path'; return 1; }
     done
     # NEMESIS extracts native files as 0644; only our fixed helper names change mode.
-    for bridge_version in v035 v039; do
+    for bridge_version in v035 v039 v039gl3; do
         for bridge_kind in iap2 iap2-route dipo gpm; do
             bridge_tool=$SCRIPT_DIR/../bin/$bridge_kind-patch-$bridge_version
             if [ -f "$bridge_tool" ] && [ ! -L "$bridge_tool" ]; then chmod 755 "$bridge_tool" || return 1; fi
@@ -99,12 +99,13 @@ inspect() {
         case "$(cat "$STATE/owner")" in
             gen5w.kr.bridge:v035-1) VERSION=v035;;
             gen5w.kr.bridge:v039-1) VERSION=v039;;
+            gen5w.kr.bridge:v039gl3-1) VERSION=v039gl3;;
             *) log 'FAIL bridge: foreign recovery ownership'; return 1;;
         esac
         BRIDGE_OWNED=yes
     else
         VERSION=
-        for bridge_version in v035 v039; do
+        for bridge_version in v035 v039 v039gl3; do
             TOOL=$SCRIPT_DIR/../bin/iap2-patch-$bridge_version
             ROUTE_TOOL=$SCRIPT_DIR/../bin/iap2-route-patch-$bridge_version
             if original "$TARGET" || patched "$TARGET"; then VERSION=$bridge_version; break; fi
@@ -132,12 +133,13 @@ inspect() {
     fi
     GPM_STATE=
     if [ -f "$GPM_TARGET" ]; then
-        for gpm_version in v035 v039; do
+        for gpm_version in v035 v039 v039gl3; do
             GPM_TOOL=$SCRIPT_DIR/../bin/gpm-patch-$gpm_version
             [ -f "$GPM_TOOL" ] && [ -x "$GPM_TOOL" ] || continue
             case "$gpm_version" in
                 v035) GPM_APK_SHA=${BRIDGE_GPM_APK_V035_SHA:-};;
                 v039) GPM_APK_SHA=${BRIDGE_GPM_APK_V039_SHA:-};;
+                v039gl3) GPM_APK_SHA=${BRIDGE_GPM_APK_V039GL3_SHA:-};;
             esac
             [ -n "$GPM_APK_SHA" ] && "$GPM_TOOL" verify "$GPM_APK" "$GPM_APK_SHA" || continue
             if gpm_original "$GPM_TARGET"; then GPM_STATE=stock
@@ -155,6 +157,7 @@ inspect() {
     case "$VERSION" in
         v035) APK_SHA=$BRIDGE_APK_V035_SHA; DIPO_APK_SHA=$BRIDGE_DIPO_APK_V035_SHA;;
         v039) APK_SHA=$BRIDGE_APK_V039_SHA; DIPO_APK_SHA=$BRIDGE_DIPO_APK_V039_SHA;;
+        v039gl3) APK_SHA=$BRIDGE_APK_V039GL3_SHA; DIPO_APK_SHA=$BRIDGE_DIPO_APK_V039GL3_SHA;;
     esac
     if ! "$TOOL" verify "$APK" "$APK_SHA" || ! "$DIPO_TOOL" verify "$DIPO_APK" "$DIPO_APK_SHA"; then
         log 'SKIP bridge: stock APK and ODEX version do not match'

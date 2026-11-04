@@ -19,7 +19,7 @@ case "$_step" in ''|*[!0-9]*) _step=0;; esac
 if [ "$_step" -lt 999 ]; then
     _bridge=$DATA/nemesis/apps/gen5w.kr.bridge
     _matched=no
-    for _version in v035 v039; do
+    for _version in v035 v039 v039gl3; do
         _tool=$_bridge/bin/iap2-route-patch-$_version
         if [ -x "$_tool" ] && "$_tool" patched "$SYS/app/Iap2ServerApp.odex"; then _matched=yes; break; fi
     done

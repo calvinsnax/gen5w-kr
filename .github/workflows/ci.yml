@@ -46,6 +46,7 @@ jobs:
           python tests/audio.py
           python tests/audio_native.py
           python tests/audio_arm.py
+          python tests/audio_arm.py --profile tools/audio/recipe-v039gl3.json --helper packages/audio-format/bin/audio-patch-v039gl3
           python tools/audit-artifacts.py dist
       - name: Save integrated installer and checksums
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

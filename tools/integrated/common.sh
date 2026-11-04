@@ -308,7 +308,7 @@ bootguard_arm() {
     rm -rf "$stage" 2>/dev/null || return 1
     mkdir -p "$stage" || return 1
     mkdir "$stage/verifiers" || { rm -rf "$stage"; return 1; }
-    for item in 'gen5w.kr.audio audio-patch audio-v039' 'gen5w.kr.audio audio-patch-v035 audio-v035'; do
+    for item in 'gen5w.kr.audio audio-patch audio-v039' 'gen5w.kr.audio audio-patch-v039gl3 audio-v039gl3' 'gen5w.kr.audio audio-patch-v035 audio-v035'; do
         set -- $item; id=$1; source="checks/$1/bin/$2"; name=$3
         [ -e "$source" ] || [ -L "$source" ] || continue
         [ -f "$source" ] && [ ! -L "$source" ] && check_stage_tree "$id" || { rm -rf "$stage"; return 1; }
@@ -337,7 +337,7 @@ bootguard_arm() {
             continue
         fi
         found=none
-        for source in "$stage/verifiers/$1-v039" "$stage/verifiers/$1-v035"; do
+        for source in "$stage/verifiers/$1-v039" "$stage/verifiers/$1-v039gl3" "$stage/verifiers/$1-v035"; do
             [ -f "$source" ] || continue
             found=no
             "$source" original "$SYS/$3" >/dev/null 2>&1 && { found=yes; break; }

@@ -78,7 +78,7 @@ preflight_gpm() {
        [ ! -e "$SYS/app/HKMC_GPM.odex" ] && [ ! -L "$SYS/app/HKMC_GPM.odex" ]; then
         return 0
     fi
-    preflight_pair "$SYS/etc/gen5w-kr-backup/bridge/gpmoriginal" "$SYS/app/HKMC_GPM.odex" "$_apps/gen5w.kr.bridge/bin/gpm-patch-v039" "$_apps/gen5w.kr.bridge/bin/gpm-patch-v035"
+    preflight_pair "$SYS/etc/gen5w-kr-backup/bridge/gpmoriginal" "$SYS/app/HKMC_GPM.odex" "$_apps/gen5w.kr.bridge/bin/gpm-patch-v039" "$_apps/gen5w.kr.bridge/bin/gpm-patch-v039gl3" "$_apps/gen5w.kr.bridge/bin/gpm-patch-v035"
 }
 guard_digest() {
     local value
@@ -95,7 +95,7 @@ preflight_optional_pair() {
         return $?
     fi
     [ -d "$BG/verifiers" ] && [ ! -L "$BG/verifiers" ] && [ -f "$dst" ] && [ ! -L "$dst" ] || return 1
-    for tool in "$BG/verifiers/$label-v039" "$BG/verifiers/$label-v035"; do
+    for tool in "$BG/verifiers/$label-v039" "$BG/verifiers/$label-v039gl3" "$BG/verifiers/$label-v035"; do
         [ -f "$tool" ] && [ ! -L "$tool" ] && [ -x "$tool" ] &&
         [ -f "$tool.md5" ] && [ ! -L "$tool.md5" ] || continue
         sum=$(guard_digest "$tool") || continue
@@ -160,11 +160,11 @@ dongle_preflight() {
 }
 recovery_roots_valid && wireless_preflight && dongle_preflight &&
 preflight_pair "$SYS/etc/gen5w-kr-backup/bridge/original" "$SYS/app/Iap2ServerApp.odex" \
-    "$_apps/gen5w.kr.bridge/bin/iap2-route-patch-v039" "$_apps/gen5w.kr.bridge/bin/iap2-route-patch-v035" \
-    "$_apps/gen5w.kr.bridge/bin/iap2-patch-v039" "$_apps/gen5w.kr.bridge/bin/iap2-patch-v035" &&
-preflight_pair "$SYS/etc/gen5w-kr-backup/bridge/dipooriginal" "$SYS/app/HKMC_DiPO.odex" "$_apps/gen5w.kr.bridge/bin/dipo-patch-v039" "$_apps/gen5w.kr.bridge/bin/dipo-patch-v035" &&
+    "$_apps/gen5w.kr.bridge/bin/iap2-route-patch-v039" "$_apps/gen5w.kr.bridge/bin/iap2-route-patch-v039gl3" "$_apps/gen5w.kr.bridge/bin/iap2-route-patch-v035" \
+    "$_apps/gen5w.kr.bridge/bin/iap2-patch-v039" "$_apps/gen5w.kr.bridge/bin/iap2-patch-v039gl3" "$_apps/gen5w.kr.bridge/bin/iap2-patch-v035" &&
+preflight_pair "$SYS/etc/gen5w-kr-backup/bridge/dipooriginal" "$SYS/app/HKMC_DiPO.odex" "$_apps/gen5w.kr.bridge/bin/dipo-patch-v039" "$_apps/gen5w.kr.bridge/bin/dipo-patch-v039gl3" "$_apps/gen5w.kr.bridge/bin/dipo-patch-v035" &&
 preflight_gpm &&
-preflight_optional_pair "$SYS/etc/gen5w-kr-backup/audio/original" "$SYS/lib/libCarPlayAudio.so" gen5w.kr.audio audio "$_apps/gen5w.kr.audio/bin/audio-patch" "$_apps/gen5w.kr.audio/bin/audio-patch-v035" || {
+preflight_optional_pair "$SYS/etc/gen5w-kr-backup/audio/original" "$SYS/lib/libCarPlayAudio.so" gen5w.kr.audio audio "$_apps/gen5w.kr.audio/bin/audio-patch" "$_apps/gen5w.kr.audio/bin/audio-patch-v039gl3" "$_apps/gen5w.kr.audio/bin/audio-patch-v035" || {
     log 'REFUSED bootguard: incomplete or unsafe recovery plan; manual recovery required'
     echo 'recovery-required' > "$BG/recovery-required.tmp" && mv "$BG/recovery-required.tmp" "$BG/recovery-required"
     sync

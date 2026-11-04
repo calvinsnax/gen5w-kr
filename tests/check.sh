@@ -24,7 +24,7 @@ EOF
 mkdir -p "$U/checks/gen5w.kr.timer/bin"
 cat > "$U/checks/gen5w.kr.timer/bin/sha256-check" <<'EOF'
 #!/bin/sh
-case "$1:$3" in verify:63cf*|verify:97e7*) grep -q '^stock' "$2";; *) exit 1;; esac
+case "$1:$3" in verify:63cf*|verify:97e7*) grep -q '^stock' "$2";; verify:01f4*|verify:5d9d*) grep -q '^gl3stock' "$2";; *) exit 1;; esac
 EOF
 chmod 755 "$U/checks/gen5w.kr.timer/bin/sha256-check"
 tool gen5w.kr.audio audio-patch
@@ -39,6 +39,14 @@ cat > "$U/checks/gen5w.kr.bridge/bin/iap2-patch-v039" <<'EOF'
 case "$1" in original) grep -q '^stock' "$2";; patched) grep -q '^legacy-control' "$2";; *) exit 2;; esac
 EOF
 chmod 755 "$U/checks/gen5w.kr.bridge/bin/iap2-patch-v039"
+# K8 GL3 HEV profile: its own verifiers recognise only "gl3stock"/"gl3patched".
+gl3tool() {
+    mkdir -p "$U/checks/$1/bin"
+    printf '#!/bin/sh\ncase "$1" in original) grep -q "^gl3stock" "$2";; patched) grep -q "^gl3patched" "$2";; *) exit 2;; esac\n' > "$U/checks/$1/bin/$2"
+    chmod 755 "$U/checks/$1/bin/$2"
+}
+gl3tool gen5w.kr.audio audio-patch-v039gl3
+for t in iap2 iap2-route dipo gpm; do gl3tool gen5w.kr.bridge $t-patch-v039gl3; done
 cat > "$B/getprop" <<'EOF'
 #!/bin/sh
 case "$1" in ro.build.product) echo OSHEV.KOR;; ro.build.display.id) echo V039.001.260902;; *) echo;; esac
@@ -146,6 +154,25 @@ check 'unregistered build does not ask for a re-flash' eval '! grep -q "순정 �
 check 'unregistered build keeps per-file hashes' grep -q '^md5:app/HKMC_GPM.odex=' "$U/GEN5W-REPORT/CHECK.txt"
 stock; echo junk > "$S/app/HKMC_GPM.odex"; run
 check 'single unknown file is not an unregistered build' grep -qx 'unregistered_build=no' "$U/GEN5W-REPORT/CHECK.txt"
+
+# K8 GL3 HEV V039: every target matches only the GL3 profile.
+gl3() {
+    for f in framework/services.odex priv-app/SystemUI.odex lib/libCarPlayAudio.so app/Iap2ServerApp.odex app/HKMC_GPM.odex; do echo gl3stock > "$S/$f"; done
+    printf 'gl3stock\ncarplay_wireless\n' > "$S/app/HKMC_DiPO.odex"
+}
+gl3
+check 'GL3 stock passes' run
+check 'GL3 verdict says install' grep -q '판정: 설치 가능' "$U/GEN5W-REPORT/CHECK.md"
+check 'GL3 is not an unregistered build' grep -qx 'unregistered_build=no' "$U/GEN5W-REPORT/CHECK.txt"
+for fact in services_odex systemui_odex carplay_audio_so iap2_odex dipo_odex gpm_odex; do
+    check "GL3 $fact is stock V039" grep -qx "$fact=stock-v039" "$U/GEN5W-REPORT/CHECK.txt"
+done
+check 'GL3 audio is not warned about' eval '! grep -q "libCarPlayAudio.so를 확인하지 못했습니다" "$U/GEN5W-REPORT/CHECK.md"'
+gl3; echo gl3patched > "$S/app/HKMC_GPM.odex"; run
+check 'GL3 patched GPM without backup is refused' eval 'grep -qx "gpm_odex=patched-v039" "$U/GEN5W-REPORT/CHECK.txt" && grep -q "HKMC_GPM 파일이 이미 바뀌어" "$U/GEN5W-REPORT/CHECK.md"'
+gl3; echo gl3patched > "$S/priv-app/SystemUI.odex"
+check 'GL3 changed SystemUI blocks' eval '! run'
+stock
 
 stock; echo stock > "$S/app/HKMC_DiPO.odex"
 check 'no wireless code still installable' run

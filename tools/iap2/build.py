@@ -12,9 +12,8 @@ def main():
     host='windows-x86_64' if os.name=='nt' else 'linux-x86_64'
     clang=Path(a.ndk)/'toolchains/llvm/prebuilt'/host/'bin'/('clang.exe' if os.name=='nt' else 'clang')
     dest=ROOT/'packages/wireless-bridge/bin';dest.mkdir(parents=True,exist_ok=True)
-    targets = [('iap2', 'v035'), ('iap2', 'v039'),
-               ('iap2-route', 'v035'), ('iap2-route', 'v039'),
-               ('dipo', 'v035'), ('dipo', 'v039'), ('gpm', 'v035'), ('gpm', 'v039')]
+    targets = [(kind, version) for version in ('v035', 'v039', 'v039gl3')
+               for kind in ('iap2', 'iap2-route', 'dipo', 'gpm')]
     for kind, version in targets:
         if kind == 'iap2': filename = f'{version}.json'
         elif kind == 'iap2-route': filename = f'route-{version}.json'

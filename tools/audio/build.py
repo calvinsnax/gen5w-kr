@@ -30,9 +30,9 @@ def main():
  out=ROOT/'.build/audio';out.mkdir(parents=True,exist_ok=True)
  def run(args):subprocess.run([str(clang),'--target=armv7a-linux-androideabi19',*map(str,args)],check=True,cwd=ROOT)
  run(['-nostdlib','-Wl,-T,tools/audio/layout.ld','-Wl,-e,input_formats','-Wl,--build-id=none','-Wl,-no-pie','tools/audio/formats.S','-o',out/'formats.elf'])
- for profile,suffix in [('recipe.json',''),('recipe-v035.json','-v035')]:
+ for profile,suffix in [('recipe.json',''),('recipe-v035.json','-v035'),('recipe-v039gl3.json','-v039gl3')]:
   recipe=json.loads((ROOT/'tools/audio'/profile).read_text())
-  include=out if not suffix else out/'v035';include.mkdir(parents=True,exist_ok=True)
+  include=out if not suffix else out/suffix[1:];include.mkdir(parents=True,exist_ok=True)
   header=['#define ORIGINAL_SHA "'+recipe['original_sha256']+'"','#define PATCHED_SHA "'+recipe['patched_sha256']+'"']
   for index,patch in enumerate(recipe['patches']):
    data=section((out/'formats.elf').read_bytes(),patch['section'])

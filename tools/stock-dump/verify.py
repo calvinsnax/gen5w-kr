@@ -28,10 +28,11 @@ CHECK_TARGETS = [
 ]
 RECIPES = {
     'app/Iap2ServerApp.odex': ['tools/iap2/route-v039.json', 'tools/iap2/v039.json',
+                               'tools/iap2/route-v039gl3.json', 'tools/iap2/v039gl3.json',
                                'tools/iap2/route-v035.json', 'tools/iap2/v035.json'],
-    'app/HKMC_DiPO.odex': ['tools/iap2/dipo-v039.json', 'tools/iap2/dipo-v035.json'],
-    'app/HKMC_GPM.odex': ['tools/iap2/gpm-v039.json', 'tools/iap2/gpm-v035.json'],
-    'lib/libCarPlayAudio.so': ['tools/audio/recipe.json', 'tools/audio/recipe-v035.json'],
+    'app/HKMC_DiPO.odex': ['tools/iap2/dipo-v039.json', 'tools/iap2/dipo-v039gl3.json', 'tools/iap2/dipo-v035.json'],
+    'app/HKMC_GPM.odex': ['tools/iap2/gpm-v039.json', 'tools/iap2/gpm-v039gl3.json', 'tools/iap2/gpm-v035.json'],
+    'lib/libCarPlayAudio.so': ['tools/audio/recipe.json', 'tools/audio/recipe-v039gl3.json', 'tools/audio/recipe-v035.json'],
 }
 
 
@@ -44,18 +45,20 @@ def known_hashes():
             if not path.is_file():
                 continue
             data = json.loads(path.read_text())
-            version = 'v035' if 'v035' in name else 'v039'
+            version = re.search(r'v0\d\d\w*', name)
+            version = version.group(0) if version else 'v039'
             known.setdefault(rel, {})
             if data.get('original_sha256'):
-                known[rel][data['original_sha256']] = f'stock-{version} (기준 차량)'
+                known[rel][data['original_sha256']] = f'stock-{version} (등록 원본)'
             if data.get('patched_sha256'):
                 known[rel][data['patched_sha256']] = f'patched-{version} ({pathlib.Path(name).name})'
     check = (ROOT / 'tools/integrated/check.sh').read_text()
     for rel in ('framework/services.odex', 'priv-app/SystemUI.odex'):
-        m = re.search(r'verify_hash ' + re.escape(rel) + r' ([0-9a-f]{64}) ([0-9a-f]{64})', check)
+        m = re.search(r'verify_hash ' + re.escape(rel) + r'((?: [0-9a-f]{64}:\w+)+)', check)
         if m:
-            known.setdefault(rel, {})[m.group(1)] = 'stock-v039 (기준 차량)'
-            known[rel][m.group(2)] = 'stock-v035 (기준 차량)'
+            for pair in m.group(1).split():
+                sha, label = pair.split(':')
+                known.setdefault(rel, {})[sha] = f'stock-{label} (등록 원본)'
     return known
 
 

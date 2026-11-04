@@ -18,18 +18,21 @@ owned() { [ -f "$STATE/owner" ] && [ ! -L "$STATE/owner" ] && [ "$(cat "$STATE/o
 select_profile() {
     original "$TARGET" && return 0
     patched "$TARGET" && return 0
-    candidate=$SCRIPT_DIR/../bin/audio-patch-v035
-    if [ -x "$candidate" ] && [ -f "$TARGET" ] && [ ! -L "$TARGET" ] &&
-       { "$candidate" original "$TARGET" || "$candidate" patched "$TARGET"; }; then
-        TOOL=$candidate
-        . "$SCRIPT_DIR/recipe-v035.sh"
-        OWNER=gen5w.kr.audio:$AUDIO_RECIPE
-    fi
+    for profile in v035 v039gl3; do
+        candidate=$SCRIPT_DIR/../bin/audio-patch-$profile
+        if [ -x "$candidate" ] && [ -f "$TARGET" ] && [ ! -L "$TARGET" ] &&
+           { "$candidate" original "$TARGET" || "$candidate" patched "$TARGET"; }; then
+            TOOL=$candidate
+            . "$SCRIPT_DIR/recipe-$profile.sh"
+            OWNER=gen5w.kr.audio:$AUDIO_RECIPE
+            return 0
+        fi
+    done
     return 0
 }
 inspect() {
     # NEMESIS extracts files as 0644, regardless of ZIP executable attributes.
-    for audio_helper in "$SCRIPT_DIR/../bin/audio-patch" "$SCRIPT_DIR/../bin/audio-patch-v035"; do
+    for audio_helper in "$SCRIPT_DIR/../bin/audio-patch" "$SCRIPT_DIR/../bin/audio-patch-v035" "$SCRIPT_DIR/../bin/audio-patch-v039gl3"; do
         if [ -e "$audio_helper" ] || [ -L "$audio_helper" ]; then
             [ -f "$audio_helper" ] && [ ! -L "$audio_helper" ] && chmod 755 "$audio_helper" || return 1
         fi
