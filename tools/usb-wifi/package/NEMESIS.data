@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.dongle
 name=Gen5W KR - USB Wi-Fi dongle support (ath9k_htc)
-package-version=0.3.33
+package-version=0.3.34
 short-desc=USB Wi-Fi 동글로 무선 CarPlay·Android Auto
 depends=!wireless.projection,!enhanced.projection
 types=application,service

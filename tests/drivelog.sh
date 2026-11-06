@@ -34,7 +34,7 @@ printf 'MAJOR=179\nMINOR=1\nDEVNAME=mmcblk0p1\nDEVTYPE=partition\nPARTN=1\n' > "
 
 printf '/dev/block/vold/8:1 %s vfat rw,relatime 0 0\n' "$USB" > "$MOUNTS"
 info=$(dl_mount_info "$USB" "$MOUNTS" "$SYS") || fail 'recognizes USB vfat mount'
-[ "$info" = '/dev/block/vold/8:1|vfat|8:1' ] || fail 'returns mount identity'
+[ "$info" = "/dev/block/vold/8:1|vfat|8:1|$USB" ] || fail 'returns mount identity'
 ok 'recognizes USB vfat mount and identity'
 
 printf '/dev/block/vold/8:2 %s exfat rw,relatime 0 0\n' "$USB" > "$MOUNTS"
@@ -48,6 +48,71 @@ if dl_mount_info "$USB" "$MOUNTS" "$SYS" >/dev/null; then fail 'rejects unsuppor
 : > "$MOUNTS"
 if dl_mount_info "$USB" "$MOUNTS" "$SYS" >/dev/null; then fail 'rejects an ordinary directory'; fi
 ok 'rejects non-USB, unsupported and unmounted paths'
+
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS")" = '!unmounted' ] || fail 'names the unmounted reason'
+printf '/dev/block/vold/179:1 %s vfat rw 0 0
+' "$USB" > "$MOUNTS"
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS")" = '!not-usb-storage' ] || fail 'names the non-USB reason'
+printf '/dev/block/vold/8:1 %s vfat rw 0 0
+/dev/block/vold/8:1 %s vfat rw 0 0
+' "$USB" "$USB" > "$MOUNTS"
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS")" = '!multiple-mounts' ] || fail 'names the duplicate-mount reason'
+ok 'reports a fixed reason word for each refusal'
+
+# Android 4.4: vold mounts the USB under /mnt/media_rw and /storage/usb0 is a FUSE view.
+MEDIA=$W/media_rw
+mkdir -p "$MEDIA/usb"
+printf '/dev/block/vold/8:1 %s vfat rw 0 0
+/dev/fuse %s fuse rw 0 0
+' "$MEDIA/usb" "$USB" > "$MOUNTS"
+info=$(dl_mount_info "$USB" "$MOUNTS" "$SYS" "$MEDIA") || fail 'follows the FUSE view to its vold mount'
+[ "$info" = "/dev/block/vold/8:1|vfat|8:1|$MEDIA/usb" ] || fail 'writes to the verified backing directory'
+printf '/dev/block/vold/179:1 %s vfat rw 0 0
+/dev/fuse %s fuse rw 0 0
+' "$MEDIA/usb" "$USB" > "$MOUNTS"
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS" "$MEDIA")" = '!not-usb-storage' ] || fail 'still refuses internal storage behind FUSE'
+printf '/dev/fuse %s fuse rw 0 0
+' "$USB" > "$MOUNTS"
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS" "$MEDIA")" = '!fuse-unmounted' ] || fail 'refuses FUSE without a vold mount'
+rmdir "$MEDIA/usb"
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS" "$MEDIA")" = '!fuse-without-media-rw' ] || fail 'refuses FUSE without a backing directory'
+mkdir -p "$MEDIA/usb"
+ok 'follows the Android 4.4 FUSE view only to a verified USB block device'
+
+mkdir -p "$SYS/class/block/sda1"
+printf '8:1
+' > "$SYS/class/block/sda1/dev"
+printf '/dev/block/sda1 %s vfat rw 0 0
+' "$USB" > "$MOUNTS"
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS")" = "/dev/block/sda1|vfat|8:1|$USB" ] || fail 'resolves a named block source through sysfs'
+printf '/dev/block/sdz1 %s vfat rw 0 0
+' "$USB" > "$MOUNTS"
+[ "$(dl_mount_info "$USB" "$MOUNTS" "$SYS")" = '!unknown-block-device' ] || fail 'refuses an unknown named block source'
+ok 'accepts named USB block sources'
+
+[ "$(dl_size_kb 14G)" = $((14 * 1048576)) ] || fail 'toolbox G size'
+[ "$(dl_size_kb 14.9G)" = $((14 * 1048576 + 9 * 104857)) ] || fail 'toolbox decimal G size'
+[ "$(dl_size_kb 512M)" = 524288 ] || fail 'toolbox M size'
+[ "$(dl_size_kb 63.5M)" = $((63 * 1024 + 5 * 102)) ] || fail 'toolbox decimal M size'
+[ "$(dl_size_kb 980K)" = 980 ] || fail 'toolbox K size'
+[ "$(dl_size_kb 123456)" = 123456 ] || fail 'GNU 1K blocks'
+[ "$(dl_size_kb 2T)" = 2000000000 ] || fail 'caps huge sizes'
+if dl_size_kb abc >/dev/null; then fail 'rejects unparseable size'; fi
+cat > "$W/df-toolbox" <<'EOF'
+#!/bin/sh
+[ "$#" = 1 ] || { echo "$1: No such file or directory" >&2; exit 1; }
+echo 'Filesystem               Size     Used     Free   Blksize'
+echo "$1          14.9G     1.2G    13.7G   32768"
+EOF
+cat > "$W/df-gnu" <<'EOF'
+#!/bin/sh
+echo 'Filesystem     1K-blocks  Used Available Use% Mounted on'
+echo "/dev/block/vold/8:1 15000000 1000 14000000 1% $1"
+EOF
+chmod +x "$W/df-toolbox" "$W/df-gnu"
+[ "$(DL_DF="$W/df-toolbox" dl_free_kb "$USB" /dev/block/vold/8:1)" = $((13 * 1048576 + 7 * 104857)) ] || fail 'reads toolbox df free column without -k'
+[ "$(DL_DF="$W/df-gnu" dl_free_kb "$USB" /dev/block/vold/8:1)" = 14000000 ] || fail 'reads GNU df available column'
+ok 'reads free space from toolbox and GNU df'
 
 printf '/dev/block/vold/8:1 %s vfat rw,relatime 0 0\n' "$USB" > "$MOUNTS"
 : > "$USB/GEN5W-DEBUG-ON"
@@ -143,5 +208,39 @@ dd if=/dev/zero of="$STALE/segment-00.log" bs=96 count=1 2>/dev/null
 if dl_write_record "$STALE" "$record" 128; then fail 'refuses ambiguous interrupted rotation'; fi
 [ -f "$STALE/.cursor.tmp" ] && [ "$(cat "$STALE/.cursor.tmp")" = 1 ] || fail 'preserves interrupted cursor temp'
 ok 'preserves ambiguous cursor temp and fails closed after interrupted rotation'
+
+if command -v mksh >/dev/null 2>&1; then
+    SVC=$ROOT/packages/drive-log/scripts/service.sh
+    printf '/dev/block/vold/8:1 %s vfat rw 0 0
+/dev/fuse %s fuse rw 0 0
+' "$MEDIA/usb" "$USB" > "$MOUNTS"
+    rm -f "$USB/GEN5W-DEBUG-ON" "$USB/GEN5W-DEBUG-OFF"; : > "$USB/GEN5W-DEBUG-ON"
+    printf '#!/bin/sh
+echo 1
+' > "$W/getprop"
+    printf '#!/bin/sh
+echo "D1|99999999|2|21|1|2|3|4|5|6"
+sleep 3
+' > "$W/logcat"
+    chmod +x "$W/getprop" "$W/logcat"
+    printf '100.00 1.00
+' > "$W/uptime"
+    DL_USB=$USB DL_MOUNTS=$MOUNTS DL_SYS=$SYS DL_MEDIA_RW=$MEDIA DL_GETPROP=$W/getprop DL_LOGCAT=$W/logcat         DL_DF=$W/df-toolbox DL_PROC_UPTIME=$W/uptime timeout 12 mksh "$SVC" > "$W/service.log" 2>&1 || true
+    grep -qx 'drive-log: started' "$W/service.log" || fail 'service logs its start'
+    grep -qx 'drive-log: recording mode=fuse-backing' "$W/service.log" || { cat "$W/service.log"; fail 'service records through the FUSE backing mount'; }
+    grep -q '^D1|99999999|2|21|' "$MEDIA/usb/GEN5W-DRIVELOG/segment-00.log" || fail 'service writes the record on the USB'
+    [ ! -e "$USB/GEN5W-DRIVELOG" ] || fail 'service does not write through the FUSE view path'
+    rm -rf "$MEDIA/usb/GEN5W-DRIVELOG"
+    rm "$USB/GEN5W-DEBUG-ON"
+    DL_USB=$USB DL_MOUNTS=$MOUNTS DL_SYS=$SYS DL_MEDIA_RW=$MEDIA DL_GETPROP=$W/getprop DL_LOGCAT=$W/logcat         DL_DF=$W/df-toolbox DL_PROC_UPTIME=$W/uptime timeout 7 mksh "$SVC" > "$W/service.log" 2>&1 || true
+    [ "$(grep -c 'waiting: no USB with GEN5W-DEBUG-ON' "$W/service.log")" = 1 ] || fail 'service logs a missing marker once'
+    : > "$USB/GEN5W-DEBUG-ON"
+    printf '/dev/block/vold/179:1 %s vfat rw 0 0
+' "$USB" > "$MOUNTS"
+    DL_USB=$USB DL_MOUNTS=$MOUNTS DL_SYS=$SYS DL_MEDIA_RW=$MEDIA DL_GETPROP=$W/getprop DL_LOGCAT=$W/logcat         DL_DF=$W/df-toolbox DL_PROC_UPTIME=$W/uptime timeout 7 mksh "$SVC" > "$W/service.log" 2>&1 || true
+    grep -qx 'drive-log: waiting: USB not verified reason=not-usb-storage' "$W/service.log" || fail 'service logs why the USB is refused'
+    [ ! -e "$USB/GEN5W-DRIVELOG" ] || fail 'refused USB is not written'
+    ok 'service records via FUSE backing and explains refusals in its own log'
+fi
 
 echo 'drive log: all tests passed'

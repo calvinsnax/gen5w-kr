@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.timer
 name=Gen5W KR - close the stock warning when its button activates (no system file change)
-package-version=0.3.33
+package-version=0.3.34
 short-desc=시동 안내창을 확인 버튼이 켜지면 바로 닫기
 depends=!local.hkmc.factory82
 types=service

@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.wireless
 name=Gen5W KR - turn on wireless CarPlay / Android Auto
-package-version=0.3.33
+package-version=0.3.34
 short-desc=무선 CarPlay·Android Auto 켜기 (내장 Wi-Fi 확인 시)
 depends=!wireless.projection,!enhanced.projection
 types=application

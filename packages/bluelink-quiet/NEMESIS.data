@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.bluelink
 name=Gen5W KR - hide the monthly Bluelink signup reminder (no system file change)
-package-version=0.3.33
+package-version=0.3.34
 short-desc=매달 뜨는 블루링크 가입 안내 숨기기
 types=service
 preinstall=scripts/pre.sh

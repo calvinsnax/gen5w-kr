@@ -14,28 +14,57 @@ dl_number() {
     return 0
 }
 
-dl_mount_info() {
-    _dl_usb=$1 _dl_mounts=$2 _dl_sys=$3
-    [ -d "$_dl_usb" ] && [ ! -L "$_dl_usb" ] || return 1
-    [ -f "$_dl_mounts" ] && [ ! -L "$_dl_mounts" ] || return 1
-    _dl_count=0 _dl_source= _dl_fs= _dl_dev=
+# One /proc/mounts entry for a mount point: "source|fstype", or a reason word.
+dl_mount_entry() {
+    _dl_point=$1 _dl_mounts=$2
+    _dl_count=0 _dl_source= _dl_fs=
     while IFS=' ' read -r _dl_s _dl_m _dl_t _dl_opts _dl_rest; do
-        [ "$_dl_m" = "$_dl_usb" ] || continue
+        [ "$_dl_m" = "$_dl_point" ] || continue
         _dl_count=$((_dl_count + 1))
         _dl_source=$_dl_s _dl_fs=$_dl_t
     done < "$_dl_mounts"
-    [ "$_dl_count" = 1 ] || return 1
-    case "$_dl_fs" in vfat|exfat) ;; *) return 1;; esac
-    case "$_dl_source" in /dev/block/vold/*) _dl_dev=${_dl_source##*/};; *) return 1;; esac
-    case "$_dl_dev" in *:*) ;; *) return 1;; esac
+    [ "$_dl_count" != 0 ] || { print -r -- unmounted; return 1; }
+    [ "$_dl_count" = 1 ] || { print -r -- multiple-mounts; return 1; }
+    print -r -- "$_dl_source|$_dl_fs"
+}
+
+# Prints "source|fstype|major:minor|directory" for the removable USB filesystem
+# behind $1. The directory is $1 itself when vold mounts the USB there, or the
+# vold mount under /mnt/media_rw when $1 is the Android 4.4 FUSE view of it.
+# On failure prints "!reason" (one fixed word) and returns 1.
+dl_mount_info() {
+    _dl_usb=$1 _dl_mounts=$2 _dl_sys=$3 _dl_media=${4:-${DL_MEDIA_RW:-/mnt/media_rw}}
+    [ -d "$_dl_usb" ] && [ ! -L "$_dl_usb" ] || { print -r -- '!no-usb-directory'; return 1; }
+    [ -f "$_dl_mounts" ] && [ ! -L "$_dl_mounts" ] || { print -r -- '!no-mount-table'; return 1; }
+    _dl_entry=$(dl_mount_entry "$_dl_usb" "$_dl_mounts") || { print -r -- "!$_dl_entry"; return 1; }
+    _dl_path=$_dl_usb
+    case "$_dl_entry" in
+        *'|fuse')
+            _dl_path=$_dl_media/${_dl_usb##*/}
+            [ -d "$_dl_path" ] && [ ! -L "$_dl_path" ] || { print -r -- '!fuse-without-media-rw'; return 1; }
+            _dl_entry=$(dl_mount_entry "$_dl_path" "$_dl_mounts") || { print -r -- "!fuse-$_dl_entry"; return 1; }
+            ;;
+    esac
+    _dl_source=${_dl_entry%%\|*} _dl_fs=${_dl_entry#*\|}
+    case "$_dl_fs" in vfat|exfat|texfat|sdfat) ;; *) print -r -- '!unsupported-filesystem'; return 1;; esac
+    case "$_dl_source" in
+        /dev/block/vold/*) _dl_dev=${_dl_source##*/};;
+        /dev/block/*)
+            _dl_name=${_dl_source##*/} _dl_dev=
+            [ -f "$_dl_sys/class/block/$_dl_name/dev" ] && [ ! -L "$_dl_sys/class/block/$_dl_name/dev" ] || { print -r -- '!unknown-block-device'; return 1; }
+            IFS= read -r _dl_dev < "$_dl_sys/class/block/$_dl_name/dev" || [ -n "$_dl_dev" ] || { print -r -- '!unknown-block-device'; return 1; }
+            ;;
+        *) print -r -- '!not-a-block-device'; return 1;;
+    esac
+    case "$_dl_dev" in *:*) ;; *) print -r -- '!unknown-block-device'; return 1;; esac
     _dl_major=${_dl_dev%%:*} _dl_minor=${_dl_dev#*:}
-    dl_number "$_dl_major" && dl_number "$_dl_minor" || return 1
+    dl_number "$_dl_major" && dl_number "$_dl_minor" || { print -r -- '!unknown-block-device'; return 1; }
     _dl_sysdev=$_dl_sys/dev/block/$_dl_dev
-    [ -L "$_dl_sysdev" ] || return 1
-    _dl_real=$( (CDPATH= cd -P "$_dl_sysdev" 2>/dev/null && pwd -P) ) || return 1
-    case "$_dl_real" in */devices/*/usb[0-9]/*) ;; *) return 1;; esac
+    [ -L "$_dl_sysdev" ] || { print -r -- '!no-sysfs-device'; return 1; }
+    _dl_real=$( (CDPATH= cd -P "$_dl_sysdev" 2>/dev/null && pwd -P) ) || { print -r -- '!no-sysfs-device'; return 1; }
+    case "$_dl_real" in */devices/*/usb[0-9]/*) ;; *) print -r -- '!not-usb-storage'; return 1;; esac
     _dl_uevent=$_dl_sysdev/uevent
-    [ -f "$_dl_uevent" ] || return 1
+    [ -f "$_dl_uevent" ] || { print -r -- '!no-sysfs-device'; return 1; }
     _dl_seen_major= _dl_seen_minor=
     while IFS= read -r _dl_line || [ -n "$_dl_line" ]; do
         case "$_dl_line" in
@@ -43,8 +72,8 @@ dl_mount_info() {
             MINOR=*) _dl_seen_minor=${_dl_line#MINOR=};;
         esac
     done < "$_dl_uevent"
-    [ "$_dl_seen_major" = "$_dl_major" ] && [ "$_dl_seen_minor" = "$_dl_minor" ] || return 1
-    print -r -- "$_dl_source|$_dl_fs|$_dl_dev"
+    [ "$_dl_seen_major" = "$_dl_major" ] && [ "$_dl_seen_minor" = "$_dl_minor" ] || { print -r -- '!device-number-mismatch'; return 1; }
+    print -r -- "$_dl_source|$_dl_fs|$_dl_dev|$_dl_path"
 }
 
 dl_opt_in() {
@@ -242,18 +271,40 @@ dl_write_record() {
     return 0
 }
 
+# Toolbox df prints sizes such as "14G", "512M" or "14.9G"; GNU df prints
+# 1K blocks. Both become kilobytes, capped below the 32-bit shell limit.
+dl_size_kb() {
+    _dl_size_value=$1 _dl_size_unit=K
+    case "$_dl_size_value" in
+        *[KMGT]) _dl_size_unit=${_dl_size_value#${_dl_size_value%?}}; _dl_size_value=${_dl_size_value%?};;
+    esac
+    _dl_size_int=${_dl_size_value%%.*} _dl_size_tenth=0
+    case "$_dl_size_value" in *.*) _dl_size_tenth=${_dl_size_value#*.}; _dl_size_tenth=${_dl_size_tenth:0:1};; esac
+    dl_number "$_dl_size_int" && dl_number "$_dl_size_tenth" || return 1
+    [ "${#_dl_size_int}" -le 9 ] || _dl_size_int=999999999
+    case "$_dl_size_unit" in
+        K) print -r -- "$_dl_size_int";;
+        M) [ "$_dl_size_int" -lt 200000 ] || { print -r -- 2000000000; return 0; }
+           print -r -- $((_dl_size_int * 1024 + _dl_size_tenth * 102));;
+        G) [ "$_dl_size_int" -lt 200 ] || { print -r -- 2000000000; return 0; }
+           print -r -- $((_dl_size_int * 1048576 + _dl_size_tenth * 104857));;
+        *) print -r -- 2000000000;;
+    esac
+}
+
 dl_free_kb() {
     _dl_usb=$1 _dl_source=$2 _dl_df=${DL_DF:-df}
-    _dl_output=$("$_dl_df" -k "$_dl_usb" 2>/dev/null) || return 1
+    # Toolbox df takes no options (it would treat -k as a path) and names the
+    # row after the path given; GNU df names it after the source device.
+    _dl_output=$("$_dl_df" "$_dl_usb" 2>/dev/null)
     while IFS= read -r _dl_line; do
         set -- $_dl_line
         [ "$#" -ge 4 ] || continue
-        [ "$1" = "$_dl_source" ] || continue
-        dl_number "$4" || return 1
-        print -r -- "$4"
-        return 0
-    done <<EOF
+        [ "$1" = "$_dl_source" ] || [ "$1" = "$_dl_usb" ] || continue
+        dl_size_kb "$4"
+        return
+    done <<DLEOF
 $_dl_output
-EOF
+DLEOF
     return 1
 }

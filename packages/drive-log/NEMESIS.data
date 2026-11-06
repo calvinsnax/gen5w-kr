@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.drivelog
 name=Gen5W KR - USB drive diagnostics
-package-version=0.3.33
+package-version=0.3.34
 short-desc=디버그 모드에서 숫자형 HUD/연결 이벤트를 USB에 순환 기록
 types=service
 

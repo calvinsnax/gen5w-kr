@@ -407,6 +407,23 @@ guard_runner_ok() {
     done
     return 0
 }
+# With GEN5W-DEBUG-ON on this USB, the next insertion saves a read-only
+# diagnosis instead of installing again. Deleting GEN5W-ACTION restores install.
+arm_next_diag() {
+    local current
+    [ "$1" != remove ] || return 0
+    [ -f GEN5W-DEBUG-ON ] && [ ! -L GEN5W-DEBUG-ON ] && [ -f diag.sh ] || return 0
+    [ ! -L GEN5W-ACTION ] || return 0
+    if [ -e GEN5W-ACTION ]; then
+        [ -f GEN5W-ACTION ] || return 0
+        current=
+        IFS= read -r current < GEN5W-ACTION
+        current=${current%$'\r'}
+        case "$current" in install|update|wired-only) ;; *) return 0;; esac
+    fi
+    echo diag > GEN5W-ACTION || return 0
+    report 'NEXT: inserting this USB again saves a read-only diagnosis (GEN5W-ACTION=diag); delete GEN5W-ACTION to install again'
+}
 finish() {
     if [ "${1:-install}" != remove ] && ! guard_runner_ok; then
         report 'FAILED boot-loop guard: the bridge service that runs it is not installed; refusing to commit'
@@ -426,6 +443,7 @@ finish() {
     rm -rf "$BOOTGUARD.previous" 2>/dev/null || report 'WARNING: previous boot guard retained'
     rm -f "$NOREBOOT"
     report 'COMMITTED: module hooks checked; vehicle audio/HUD/connection test pending'
+    arm_next_diag "${1:-install}"
     write_summary || echo '결과 문서를 USB에 저장하지 못했습니다. Manager 로그를 확인하세요.'
     sync
     [ "${IT_NO_REBOOT:-0}" = 1 ] || cold_reboot

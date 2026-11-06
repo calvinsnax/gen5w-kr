@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.probe
 name=Gen5W KR diagnostic log collector (read-only)
-package-version=0.3.33
+package-version=0.3.34
 short-desc=시동 안내·CarPlay 진단 로그를 USB에 저장
 types=application,service
 

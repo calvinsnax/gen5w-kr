@@ -60,6 +60,13 @@ echo 'echo selected-wired' > "$W/usb/wired-only.sh"
 echo wired-only > "$W/usb/GEN5W-ACTION"
 check 'USB action selects wired-only mode' eval 'mksh "$W/usb/entry.sh" | grep -qx selected-wired'
 check 'automatic installer needs no CMD selectors' test ! -f "$W/usb/무선끄기.cmd"
+echo 'echo selected-diag' > "$W/usb/diag.sh"
+echo diag > "$W/usb/GEN5W-ACTION"
+cp "$W/usb/GEN5W-REPORT/STARTUP.txt" "$W/startup-before-diag"
+check 'USB action selects the read-only diagnosis' eval 'mksh "$W/usb/entry.sh" | grep -qx selected-diag'
+check 'diagnosis keeps the install report files' cmp -s "$W/startup-before-diag" "$W/usb/GEN5W-REPORT/STARTUP.txt"
+check 'diagnosis writes its own entry status' eval 'grep -qx action=diag "$W/usb/GEN5W-REPORT/DIAG_STARTUP.txt" && grep -qx exit=0 "$W/usb/GEN5W-REPORT/DIAG_STARTUP.txt" && grep -qx selected-diag "$W/usb/GEN5W-REPORT/DIAG_EXEC_LOG.txt"'
+check 'bundle ships the diagnosis action' test -f "$W/standard/diag.sh"
 echo unknown > "$W/usb/GEN5W-ACTION"
 check 'USB action selector refuses unknown action' eval '! mksh "$W/usb/entry.sh"'
 python3 - "$W/dist/gen5w.kr.core.zip" <<'PY'

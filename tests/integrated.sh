@@ -49,7 +49,10 @@ for m in ['dongle','wireless','audio','bridge','core','timer','bluelink','drivel
 PY
 mkdir -p "$W/sys/framework" "$W/sys/priv-app"; echo stock > "$W/sys/framework/services.odex"; echo stock > "$W/sys/priv-app/SystemUI.odex"
 run() { (cd "$W/usb" && IT_DATA="$W/data" IT_SYSTEM="$W/sys" IT_NEM="$W/bin/nemesis" IT_SHELL=$(command -v mksh) IT_NO_REBOOT=1 CK_TEST_PATH="$W/bin:$PATH" PATH="$W/bin:$PATH" mksh "$1.sh" > "$W/out" 2>&1); }
+: > "$W/usb/GEN5W-DEBUG-ON"
 check 'integrated install all modules' run install
+check 'a committed install with DEBUG-ON arms the read-only diagnosis next' grep -qx diag "$W/usb/GEN5W-ACTION"
+rm -f "$W/usb/GEN5W-ACTION" "$W/usb/GEN5W-DEBUG-ON"
 check 'seven registered standard module trees' test "$(find "$W/data/nemesis/apps" -name NEMESIS.data | wc -l)" = 7
 check 'logger is registered independently of the Probe app' test -f "$W/data/nemesis/apps/gen5w.kr.drivelog/NEMESIS.data"
 check 'standard registers the Bluelink reminder service' test -f "$W/data/nemesis/apps/gen5w.kr.bluelink/NEMESIS.data"
@@ -347,6 +350,22 @@ check 'native warning is never reported as proven live output' grep -q '순정 �
 echo DO_NOT_COLLECT_PRIVATE_WARNING > "$W/data/data/kr.gen5w.core/files/hud-native-warning.status"
 check 'unrecognized private warning file is ignored' run status
 check 'unrecognized warning content does not leave vehicle' eval '! grep -q DO_NOT_COLLECT_PRIVATE_WARNING "$W/usb/GEN5W-REPORT/ISSUE.md"'
+arm() { (cd "$W/usb" && IT_DATA="$W/data" IT_SYSTEM="$W/sys" mksh -c '. ./common.sh; arm_next_diag "$1"' arm "$1" > "$W/out" 2>&1); }
+rm -f "$W/usb/GEN5W-ACTION" "$W/usb/GEN5W-DEBUG-ON"
+check 'commit without DEBUG-ON leaves no next action' eval 'arm install && test ! -e "$W/usb/GEN5W-ACTION"'
+: > "$W/usb/GEN5W-DEBUG-ON"
+check 'commit with DEBUG-ON arms the read-only diagnosis next' eval 'arm install && grep -qx diag "$W/usb/GEN5W-ACTION"'
+check 'commit tells how to install again' grep -q 'NEXT: inserting this USB again saves a read-only diagnosis' "$W/out"
+echo update > "$W/usb/GEN5W-ACTION"
+check 'an update action is replaced by diag' eval 'arm install && grep -qx diag "$W/usb/GEN5W-ACTION"'
+echo remove > "$W/usb/GEN5W-ACTION"
+check 'an explicit other action is never replaced' eval 'arm install && grep -qx remove "$W/usb/GEN5W-ACTION"'
+rm -f "$W/usb/GEN5W-ACTION"
+check 'removal never arms diag' eval 'arm remove && test ! -e "$W/usb/GEN5W-ACTION"'
+ln -s "$W/elsewhere" "$W/usb/GEN5W-ACTION"
+check 'a linked action file is left alone' eval 'arm install && test -L "$W/usb/GEN5W-ACTION" && test ! -e "$W/elsewhere"'
+rm -f "$W/usb/GEN5W-ACTION"
+rm -f "$W/usb/GEN5W-ACTION" "$W/usb/GEN5W-DEBUG-ON"
 echo recovery-required > "$W/data/nemesis/gen5w-kr-integrated/state"
 touch "$W/data/nemesis/gen5wkr.noreboot"
 check 'update refuses unresolved system recovery' eval '! run update'

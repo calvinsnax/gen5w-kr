@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.bridge
 name=Gen5W KR - OEM PhoneProjection bridge
-package-version=0.3.33
+package-version=0.3.34
 short-desc=순정 PhoneProjection 무선 CarPlay 연결 요청·상태 확인
 depends=!wireless.projection,!enhanced.projection
 types=application,service

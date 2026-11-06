@@ -11,7 +11,7 @@ NEMESIS가 설치된 Gen5W용입니다. V039 순정 파일의 정확한 해시�
 3. iPhone에서 차량과 Bluetooth 페어링을 합니다. 이미 페어링했다면 다시 연결합니다. 무선 CarPlay 연결 요청을 허용합니다.
 4. 지도 앱의 길안내를 시작하고 회전·거리·차선 표시와 음악·안내 음성을 확인합니다. 유선 CarPlay도 사용할 수 있습니다.
 
-업데이트는 USB 루트의 `GEN5W-ACTION` 파일 첫 줄에 `update`, 이전 설치로 되돌리기는 `rollback`, 전체 제거는 `remove`, 상태 확인은 `status`를 적고 같은 실행 메뉴를 선택합니다. 그 밖에 `wired-only`(무선 설정을 순정으로 되돌리고 유선 기능만 설치), `check`(아무것도 바꾸지 않고 대상 파일이 순정인지 점검해 `GEN5W-REPORT/CHECK.md`에 기록)도 쓸 수 있습니다. 파일이 없으면 설치합니다. 작업 후 해당 파일을 지우세요. 동글형은 내장 Wi-Fi가 있는 차에서 설치를 멈춥니다. 그래도 동글을 쓰려면 USB 루트에 확장자 없는 빈 파일 `GEN5W-FORCE-DONGLE`을 둡니다. 설치가 실패하면 자동 원복을 시도하며 실패 보고서는 기기의 `/data/nemesis/gen5w-kr-integrated/report`에 남습니다. `recovery-required`이면 백업을 지우지 말고 같은 번들로 복구하세요. 설치에 쓴 ZIP은 순정 복귀(제거)에 필요하니 보관하세요.
+업데이트는 USB 루트의 `GEN5W-ACTION` 파일 첫 줄에 `update`, 이전 설치로 되돌리기는 `rollback`, 전체 제거는 `remove`, 상태 확인은 `status`를 적고 같은 실행 메뉴를 선택합니다. 그 밖에 `wired-only`(무선 설정을 순정으로 되돌리고 유선 기능만 설치), `check`(아무것도 바꾸지 않고 대상 파일이 순정인지 점검해 `GEN5W-REPORT/CHECK.md`에 기록), `diag`(아무것도 바꾸지 않고 진단 기록을 `GEN5W-REPORT/DIAG-번호.txt`로 저장)도 쓸 수 있습니다. 파일이 없으면 설치합니다. USB 루트에 `GEN5W-DEBUG-ON`이 있으면 설치가 끝날 때 `GEN5W-ACTION`을 `diag`로 바꿔 두어, 재부팅 후 같은 USB를 다시 꽂으면 설치 대신 진단 기록만 저장합니다. 다시 설치하려면 `GEN5W-ACTION`을 지우세요. 작업 후 해당 파일을 지우세요. 동글형은 내장 Wi-Fi가 있는 차에서 설치를 멈춥니다. 그래도 동글을 쓰려면 USB 루트에 확장자 없는 빈 파일 `GEN5W-FORCE-DONGLE`을 둡니다. 설치가 실패하면 자동 원복을 시도하며 실패 보고서는 기기의 `/data/nemesis/gen5w-kr-integrated/report`에 남습니다. `recovery-required`이면 백업을 지우지 말고 같은 번들로 복구하세요. 설치에 쓴 ZIP은 순정 복귀(제거)에 필요하니 보관하세요.
 
 Wi-Fi 클라이언트는 기본 꺼짐입니다. 필요한 경우에만 USB 루트에 확장자 없는 빈 파일 `GEN5W-WIFI-CLIENT`를 만들고 설치합니다. 무선 CarPlay 사용에 필수인 설정은 아닙니다. **주의:** 이 파일은 벽돌이 났던 V039 차량에 추가돼 있던 설정입니다(원인은 확정되지 않음). 부팅 중 Wi-Fi 클라이언트를 켜는 경로를 열기 때문에, 꼭 필요하지 않으면 만들지 마세요.
 
@@ -25,7 +25,7 @@ NEMESIS의 **Gen5W KR diagnostic log collector**를 실행하면 USB에 `GEN5WKR
 
 ## opt-in USB 주행 진단 로그
 
-통합 설치본의 `gen5w.kr.drivelog` 서비스는 부팅 완료 후 USB 루트에 빈 `GEN5W-DEBUG-ON` 파일이 있고 `GEN5W-DEBUG-OFF`가 없을 때에만 숫자형 HUD·연결 이벤트를 기록합니다. USB가 `/storage/usb0`에 실제로 마운트되어 있고 USB 장치임을 확인할 수 있어야 합니다. USB 루트의 `GEN5W-DRIVELOG/`에 1 MiB 세그먼트 최대 32개를 순환 기록하며 여유 공간이 64 MiB 아래로 내려가면 멈춥니다. 일주일 보존을 보장하지 않습니다. 중단하려면 DEBUG-ON을 제거하거나 DEBUG-OFF를 추가하고 USB를 안전하게 분리하세요. 기록 항목과 경로 추론 가능성은 [주행 로그 범위와 한계](drive-log.md)를 확인하세요.
+통합 설치본의 `gen5w.kr.drivelog` 서비스는 부팅 완료 후 USB 루트에 빈 `GEN5W-DEBUG-ON` 파일이 있고 `GEN5W-DEBUG-OFF`가 없을 때에만 숫자형 HUD·연결 이벤트를 기록합니다. USB가 `/storage/usb0`에 실제로 마운트되어 있고(Android 4.4의 FUSE 보기라면 그 뒤의 `/mnt/media_rw` 마운트) USB 장치임을 확인할 수 있어야 합니다. 기록하지 못하면 그 이유가 서비스 로그에 한 줄로 남고 `diag` 진단에 포함됩니다. USB 루트의 `GEN5W-DRIVELOG/`에 1 MiB 세그먼트 최대 32개를 순환 기록하며 여유 공간이 64 MiB 아래로 내려가면 멈춥니다. 일주일 보존을 보장하지 않습니다. 중단하려면 DEBUG-ON을 제거하거나 DEBUG-OFF를 추가하고 USB를 안전하게 분리하세요. 기록 항목과 경로 추론 가능성은 [주행 로그 범위와 한계](drive-log.md)를 확인하세요.
 
 ## 무선 미지원 차량
 

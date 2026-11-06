@@ -1,6 +1,6 @@
 # USB 주행 진단 기록
 
-통합 패키지의 `gen5w.kr.drivelog` 서비스는 `/storage/usb0/GEN5W-DEBUG-ON` 표식이 있는 경우에만 작동합니다. Android 부팅 완료를 기다린 뒤 `/proc/mounts`에서 `/storage/usb0`가 `vfat` 또는 `exfat`로 실제 마운트됐는지, `/sys/dev/block/<major>:<minor>/uevent`의 장치 경로에 USB가 있는지 확인합니다. 확인할 수 없거나 `GEN5W-DEBUG-OFF`가 있으면 쓰지 않습니다. Probe 앱이나 HUD 앱이 없어도 서비스는 설치될 수 있지만, 이벤트 로그는 해당 앱이 실행되어 전용 이벤트를 내보낼 때만 생깁니다.
+통합 패키지의 `gen5w.kr.drivelog` 서비스는 `/storage/usb0/GEN5W-DEBUG-ON` 표식이 있는 경우에만 작동합니다. Android 부팅 완료를 기다린 뒤 `/proc/mounts`에서 `/storage/usb0`가 `vfat` 또는 `exfat`로 실제 마운트됐는지, `/sys/dev/block/<major>:<minor>/uevent`의 장치 경로에 USB가 있는지 확인합니다. Android 4.4처럼 `/storage/usb0`가 FUSE 보기이면 같은 이름의 `/mnt/media_rw/usb0` vold 마운트를 같은 기준으로 확인하고 그 디렉터리에 씁니다. 확인할 수 없거나 `GEN5W-DEBUG-OFF`가 있으면 쓰지 않으며, 그 이유를 고정 문구 한 줄로 서비스 로그(`/data/nemesis/logs/gen5w.kr.drivelog/`)에 남깁니다. 여유 공간은 옵션 없는 toolbox `df` 출력(`14G`, `512M` 형식)으로 읽습니다. Probe 앱이나 HUD 앱이 없어도 서비스는 설치될 수 있지만, 이벤트 로그는 해당 앱이 실행되어 전용 이벤트를 내보낼 때만 생깁니다.
 
 기록 위치는 USB의 `GEN5W-DRIVELOG/`뿐입니다. 파일은 1 MiB씩 최대 32개이며 원형으로 가장 오래된 세그먼트를 덮어씁니다. 기록 전 여유 공간이 64 MiB보다 적으면 중단합니다. 일주일 보존을 보장하지 않습니다. 쓰기 실패, 표식 제거, mount source 변경 또는 분리가 관찰되면 idle 상태에서도 최대 2초 안에 읽기 파이프를 닫습니다. 검증한 마운트 디렉터리로 이동한 뒤 상대 경로만 사용하므로 분리 후 `/storage/usb0` 아래에 드러나는 일반 디렉터리로 쓰기를 전환하지 않습니다. 기존 파일은 소유 표식과 정해진 `segment-NN.log` 형식이 맞는 경우에만 순환 관리하며, 다른 파일은 삭제하지 않습니다. 전원 중단 시 `.cursor.tmp`가 남으면 순환 상태가 모호하므로 이를 지우거나 자동 복구하지 않고 기록을 중단합니다.
 

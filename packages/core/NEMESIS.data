@@ -2,7 +2,7 @@
 version=1.0
 id=gen5w.kr.core
 name=Gen5W KR - CarPlay HUD
-package-version=0.3.33
+package-version=0.3.34
 short-desc=CarPlay 길안내를 계기판·HUD에 표시
 depends=!projection.tbt,!enhanced.projection
 types=application,service
