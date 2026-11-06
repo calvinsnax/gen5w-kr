@@ -198,6 +198,40 @@ check 'unknown stock is skip77' test "$rc" = 77
 check 'unknown creates no backup' test ! -d "$PERSIST"
 cp "$W/fixture/v039-original" "$TARGET"; cp "$W/fixture/v035-apk" "$APK"
 run pre; rc=$?; check 'mismatched APK skip77' test "$rc" = 77
+# Diagnostic bisection switch (GEN5W-BRIDGE-TEST written by the bundle).
+TESTMARK=$W/data/nemesis/gen5wkr.bridge.test
+cp "$W/fixture/v039gl3-original" "$TARGET"; cp "$W/fixture/v039gl3-apk" "$APK"
+cp "$W/fixture/dipo-v039gl3-original" "$DIPO"; cp "$W/fixture/dipo-v039gl3-apk" "$DIPOAPK"
+cp "$W/fixture/gpm-v039gl3-original" "$GPM"; cp "$W/fixture/gpm-v039gl3-apk" "$GPMAPK"
+echo skip-iap2 > "$TESTMARK"
+check 'skip-iap2 install' run post
+check 'skip-iap2 keeps iAP2 stock' cmp -s "$TARGET" "$W/fixture/v039gl3-original"
+check 'skip-iap2 still patches DiPO' cmp -s "$DIPO" "$W/fixture/dipo-v039gl3-patched"
+check 'skip-iap2 still patches GPM' cmp -s "$GPM" "$W/fixture/gpm-v039gl3-patched"
+check 'skip-iap2 keeps the iAP2 backup' cmp -s "$PERSIST/original" "$W/fixture/v039gl3-original"
+check 'skip-iap2 logs the test mode' grep -q '^TEST bridge: iAP2 stock=yes, DiPO stock=no' "$W/last-run"
+check 'skip-iap2 service accepts stock iAP2' env BRIDGE_TEST_ONCE=1 mksh "$W/pkg/scripts/service.sh"
+check 'skip-iap2 reinstall' run post
+rm -f "$TESTMARK"
+if env BRIDGE_TEST_ONCE=1 mksh "$W/pkg/scripts/service.sh" >/dev/null 2>&1; then bad 'service refuses stock iAP2 without the switch'; else ok 'service refuses stock iAP2 without the switch'; fi
+check 'normal install over skip-iap2 patches iAP2' run post
+check 'switch removed: iAP2 patched' cmp -s "$TARGET" "$W/fixture/v039gl3-patched"
+printf 'skip-iap2\nskip-dipo\n' > "$TESTMARK"
+check 'skip-iap2+skip-dipo over a patched unit' run post
+check 'both skipped: iAP2 restored to stock' cmp -s "$TARGET" "$W/fixture/v039gl3-original"
+check 'both skipped: DiPO restored to stock' cmp -s "$DIPO" "$W/fixture/dipo-v039gl3-original"
+check 'both skipped: GPM still patched' cmp -s "$GPM" "$W/fixture/gpm-v039gl3-patched"
+check 'both skipped uninstall' run preun
+check 'uninstall restores GPM' cmp -s "$GPM" "$W/fixture/gpm-v039gl3-original"
+check 'uninstall removes the switch' test ! -e "$TESTMARK"
+check 'both skipped owned state removed' test ! -d "$PERSIST"
+echo skip-all > "$TESTMARK"
+if run pre; then bad 'unknown switch token refused'; else ok 'unknown switch token refused'; fi
+check 'unknown switch token changes nothing' cmp -s "$TARGET" "$W/fixture/v039gl3-original"
+rm -f "$TESTMARK"
+cp "$W/fixture/v039-original" "$TARGET"; cp "$W/fixture/v035-apk" "$APK"
+cp "$W/fixture/dipo-v039-original" "$DIPO"; cp "$W/fixture/dipo-v039-apk" "$DIPOAPK"
+cp "$W/fixture/gpm-v039-original" "$GPM"; cp "$W/fixture/gpm-v039-apk" "$GPMAPK"
 cp "$W/fixture/v039-apk" "$APK"
 touch "$W/fixture/fail-dipo-mv"
 if run post; then bad 'rename failure rejected'; else ok 'rename failure rejected'; fi

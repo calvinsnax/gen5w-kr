@@ -35,6 +35,33 @@ if [ "$VARIANT" = dongle ] || [ "$BACKEND" = dongle ]; then
     ALL_IDS=$IDS
 fi
 [ "$BACKEND" = builtin ] || [ "$BACKEND" = dongle ] || { echo 'REFUSED: USB Wi-Fi backend is not available in this build'; exit 1; }
+# Bisection switch for the bridge's ODEX patches (vehicle diagnosis only).
+# GEN5W-BRIDGE-TEST holds one token per line: skip-iap2 keeps Iap2ServerApp.odex
+# stock, skip-dipo keeps HKMC_DiPO.odex stock. Unknown tokens refuse the run.
+BRIDGE_TEST_MARK=$DATA/nemesis/gen5wkr.bridge.test
+BRIDGE_TEST=
+if [ -e GEN5W-BRIDGE-TEST ] || [ -L GEN5W-BRIDGE-TEST ]; then
+    [ -f GEN5W-BRIDGE-TEST ] && [ ! -L GEN5W-BRIDGE-TEST ] || { echo 'REFUSED GEN5W-BRIDGE-TEST is not a regular file'; exit 1; }
+    while IFS= read -r _token || [ -n "$_token" ]; do
+        _token=${_token%$'\r'}
+        case "$_token" in
+            skip-iap2|skip-dipo) case " $BRIDGE_TEST " in *" $_token "*) ;; *) BRIDGE_TEST="$BRIDGE_TEST $_token";; esac;;
+            ''|'#'*) ;;
+            *) echo 'REFUSED GEN5W-BRIDGE-TEST: only skip-iap2 and skip-dipo are allowed'; exit 1;;
+        esac
+    done < GEN5W-BRIDGE-TEST
+    BRIDGE_TEST=${BRIDGE_TEST# }
+fi
+# Written right before the bridge installs so its post-install and boot service
+# see the same choice; removed when the USB carries no switch.
+bridge_test_mark() {
+    local _t
+    [ ! -L "$BRIDGE_TEST_MARK" ] && [ ! -L "$BRIDGE_TEST_MARK.tmp" ] || return 1
+    if [ -z "$BRIDGE_TEST" ]; then rm -f "$BRIDGE_TEST_MARK" "$BRIDGE_TEST_MARK.tmp"; return $?; fi
+    rm -f "$BRIDGE_TEST_MARK.tmp" || return 1
+    for _t in $BRIDGE_TEST; do echo "$_t" >> "$BRIDGE_TEST_MARK.tmp" || return 1; done
+    mv "$BRIDGE_TEST_MARK.tmp" "$BRIDGE_TEST_MARK" && sync
+}
 # Empty GEN5W-FORCE-DONGLE next to this script: use the dongle even with built-in Wi-Fi.
 GEN5W_FORCE_DONGLE=
 [ ! -f GEN5W-FORCE-DONGLE ] || [ -L GEN5W-FORCE-DONGLE ] || GEN5W_FORCE_DONGLE=1
@@ -668,6 +695,10 @@ install_transaction() {
         safe_remove "$id" || {
             result "$id" failed; rollback_transaction; return 1;
         }
+        if [ "$id" = gen5w.kr.bridge ]; then
+            bridge_test_mark || { result "$id" failed; report 'FAILED bridge test switch'; rollback_transaction; return 1; }
+            [ -z "$BRIDGE_TEST" ] || report "TEST bridge: $BRIDGE_TEST (diagnostic build; route HUD unavailable when iAP2 stays stock)"
+        fi
         "$NEM" install "$(pwd)/packages/$id.zip"
         rc=$?
         if [ "$rc" != 0 ] || [ ! -f "$APPS/$id/NEMESIS.data" ]; then

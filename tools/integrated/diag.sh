@@ -47,6 +47,7 @@ section() { echo; echo "== $1"; }
         echo "$id ${v#package-version=}"
     done
     section transaction; cat "$DATA/nemesis/gen5w-kr-integrated/state" 2>/dev/null
+    section 'bridge test switch'; cat "$DATA/nemesis/gen5wkr.bridge.test" 2>/dev/null || echo none
     section props
     getprop | grep -E 'boot_completed|ium|wifi|wlan|hotspot|softap|carplay|dipo|init\.svc\.(hostapd|wpa|dhcp|p2p|iprenew|bt|bluetooth)' | clean
     section permissions; ls "${IT_SYSTEM:-/system}/etc/permissions" 2>/dev/null | grep -i -E 'wireless|wifi|hotspot'

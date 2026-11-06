@@ -31,7 +31,7 @@ fi
 . "$SERVICE_DIR/scripts/common.sh"
 . "$SERVICE_DIR/scripts/retry-state.sh"
 inspect || exit $?
-[ "$BRIDGE_STATE" = route-patched ] && [ "$DIPO_STATE" = patched ] && [ "$BRIDGE_OWNED" = yes ] || exit 1
+[ "$BRIDGE_OWNED" = yes ] && iap2_expected && dipo_expected || exit 1
 DATA=${BRIDGE_TEST_DATA:-/data}
 NEM=${BRIDGE_TEST_NEM:-/system/xbin/nemesis}
 STOPPING=$DATA/nemesis/gen5wkr.bridge.stopping

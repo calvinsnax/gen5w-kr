@@ -17,6 +17,26 @@ MARK=$DATA/nemesis/backup/gen5w.kr.bridge
 STAGE=$TARGET.gen5w-kr-bridge.tmp
 NOREBOOT=$DATA/nemesis/gen5wkr.noreboot
 STOPPING=$DATA/nemesis/gen5wkr.bridge.stopping
+# Diagnostic bisection written by the release bundle (GEN5W-BRIDGE-TEST):
+# skip-iap2 / skip-dipo keep that ODEX stock. Absent means the normal build.
+TEST_MARK=$DATA/nemesis/gen5wkr.bridge.test
+SKIP_IAP2=no
+SKIP_DIPO=no
+read_test_mode() {
+    local test_token
+    SKIP_IAP2=no; SKIP_DIPO=no
+    [ ! -L "$TEST_MARK" ] || return 1
+    [ -e "$TEST_MARK" ] || return 0
+    [ -f "$TEST_MARK" ] || return 1
+    while IFS= read -r test_token || [ -n "$test_token" ]; do
+        case "$test_token" in
+            skip-iap2) SKIP_IAP2=yes;;
+            skip-dipo) SKIP_DIPO=yes;;
+            '') ;;
+            *) return 1;;
+        esac
+    done < "$TEST_MARK"
+}
 # AP start guard state (service.sh, AndroidWifiAp). Install and uninstall start it fresh.
 APG=$DATA/nemesis/gen5wkr.apguard
 APG_COUNT=$DATA/nemesis/gen5wkr.apguard.count
@@ -50,6 +70,9 @@ original() { [ -f "$1" ] && [ ! -L "$1" ] && { "$TOOL" original "$1" 2>/dev/null
 route_patched() { [ -f "$1" ] && [ ! -L "$1" ] && "$ROUTE_TOOL" patched "$1"; }
 legacy_patched() { [ -f "$1" ] && [ ! -L "$1" ] && "$TOOL" patched "$1"; }
 patched() { route_patched "$1" || legacy_patched "$1"; }
+# Expected live state after install under the current test mode.
+iap2_expected() { if [ "$SKIP_IAP2" = yes ]; then original "$TARGET"; else route_patched "$TARGET"; fi; }
+dipo_expected() { if [ "$SKIP_DIPO" = yes ]; then dipo_original "$DIPO_TARGET"; else dipo_patched "$DIPO_TARGET"; fi; }
 dipo_original() { [ -f "$1" ] && [ ! -L "$1" ] && "$DIPO_TOOL" original "$1"; }
 dipo_patched() { [ -f "$1" ] && [ ! -L "$1" ] && "$DIPO_TOOL" patched "$1"; }
 dipo_previous() {
@@ -83,9 +106,10 @@ sys_ro() {
 }
 inspect() {
     [ -x "$NEM" ] || return 1
-    for bridge_path in "$SYS/etc/gen5w-kr-backup" "$DATA/nemesis/backup" "$STATE" "$MARK" "$TARGET" "$APK" "$DIPO_TARGET" "$DIPO_APK" "$GPM_TARGET" "$GPM_APK" "$STOPPING"; do
+    for bridge_path in "$SYS/etc/gen5w-kr-backup" "$DATA/nemesis/backup" "$STATE" "$MARK" "$TARGET" "$APK" "$DIPO_TARGET" "$DIPO_APK" "$GPM_TARGET" "$GPM_APK" "$STOPPING" "$TEST_MARK"; do
         [ ! -L "$bridge_path" ] || { log 'FAIL bridge: symbolic link at managed path'; return 1; }
     done
+    read_test_mode || { log 'FAIL bridge: unreadable test switch'; return 1; }
     # NEMESIS extracts native files as 0644; only our fixed helper names change mode.
     for bridge_version in v035 v039 v039gl3; do
         for bridge_kind in iap2 iap2-route dipo gpm; do

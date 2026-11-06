@@ -27,6 +27,17 @@ NEMESIS의 `scripts/service.sh`는 설치한 부팅부터 부팅 시도 수를 �
 
 제거는 `/data/nemesis/gen5wkr.bridge.stopping`을 만든 뒤 `kr.gen5w.wireless.STOP_BRIDGE`를 방송하고 2초 기다립니다. 수신기는 `android.permission.SHUTDOWN`으로 보호됩니다. supervisor는 표식이 있으면 앱과 보조 프로세스를 중지하고 재시작하지 않습니다. 다음 설치가 성공한 뒤에만 표식을 지웁니다.
 
+## 분리 시험 스위치 (진단용)
+
+bridge 설치 후 CarPlay가 동작하지 않을 때 어느 ODEX 패치가 원인인지 가리기 위한 스위치입니다. USB 맨 바깥에 `GEN5W-BRIDGE-TEST` 파일을 두고 한 줄에 하나씩 적습니다.
+
+| 값 | 효과 |
+|---|---|
+| `skip-iap2` | `Iap2ServerApp.odex`를 순정으로 둡니다. iAP2 Wi-Fi 정보·길안내 기능 선언이 켜지지 않으며, CarPlay HUD(core)는 설치 조건이 맞지 않아 건너뜁니다 |
+| `skip-dipo` | `HKMC_DiPO.odex`를 순정으로 둡니다. 핸들 통화 키 보완이 빠집니다 |
+
+설치기는 bridge를 설치하기 직전에 `/data/nemesis/gen5wkr.bridge.test`에 값을 기록하고, bridge의 설치 스크립트와 부팅 서비스가 같은 값을 읽습니다. 스위치 없이 다시 설치하면 표식을 지우고 일반 구성으로 패치합니다. 제거하면 표식도 지웁니다. 다른 값이 있으면 아무것도 바꾸지 않고 설치를 거부합니다. 원본 백업과 복원 절차는 일반 설치와 같습니다.
+
 ## PC 검증
 
 `bash tests/bridge.sh`의 모의 설치·복원 및 supervisor 검사 164개가 통과했습니다. OEM 요청 세션·반사형 API 접근 JVM 시험도 포함됩니다. Android 4.4 차량의 PhoneProjection 권한, Wi-Fi 설정 일치, 무선 CarPlay는 아직 확인하지 않았습니다.

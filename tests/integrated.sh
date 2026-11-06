@@ -230,6 +230,21 @@ echo stock > "$W/sys/framework/services.odex"
 check 'remove clears the match marker' eval 'run check; run update; run remove; test ! -e "$W/data/nemesis/gen5wkr.ap-match"'
 rm -f "$W/usb/GEN5W-VARIANT"
 check 'standard boot guard limit stays 3' eval 'rm -f "$W/usb/GEN5W-VARIANT"; run update && grep -qx 3 "$W/data/nemesis/gen5wkr.bootguard/max"'
+# Bridge bisection switch: the bundle hands GEN5W-BRIDGE-TEST to the bridge.
+BTM=$W/data/nemesis/gen5wkr.bridge.test
+run remove; rm -f "$W/data/nemesis/gen5wkr.noreboot"
+check 'install without the switch writes no bridge test marker' eval 'run install && test ! -e "$BTM"'
+run remove; rm -f "$W/data/nemesis/gen5wkr.noreboot"
+printf 'skip-iap2\r\n# note\nskip-dipo\nskip-iap2\n' > "$W/usb/GEN5W-BRIDGE-TEST"
+check 'install with the bridge test switch' run install
+check 'switch reaches the bridge once per token' eval 'test "$(cat "$BTM")" = "$(printf "skip-iap2\nskip-dipo")"'
+check 'switch is reported' grep -q 'TEST bridge: skip-iap2 skip-dipo' "$W/data/nemesis/gen5w-kr-integrated/report"
+run remove; rm -f "$W/data/nemesis/gen5wkr.noreboot"
+echo skip-everything > "$W/usb/GEN5W-BRIDGE-TEST"
+check 'unknown switch token refuses before any change' eval '! run install && grep -q "REFUSED GEN5W-BRIDGE-TEST" "$W/out" && test ! -e "$W/data/nemesis/apps/gen5w.kr.bridge"'
+rm -f "$W/usb/GEN5W-BRIDGE-TEST"
+echo skip-iap2 > "$BTM"
+check 'install without the switch clears an old marker' eval 'run install && test ! -e "$BTM"'
 export IT_PRE_FAIL=gen5w.kr.audio
 check 'explicit preinstall refusal reported' eval '! run update'
 unset IT_PRE_FAIL

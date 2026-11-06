@@ -2,6 +2,7 @@
 
 ## 미배포 (다음 버전)
 
+- 실차 원인 확인용 bridge 분리 시험 스위치를 추가했습니다. USB 맨 바깥 `GEN5W-BRIDGE-TEST` 파일에 한 줄씩 `skip-iap2`(Iap2ServerApp.odex를 순정으로 둠), `skip-dipo`(HKMC_DiPO.odex를 순정으로 둠)를 적으면 해당 패치만 빼고 설치합니다. 다른 값은 설치 전에 거부합니다. `skip-iap2`이면 CarPlay HUD(core)는 설치 조건을 만족하지 않아 건너뜁니다. 스위치 없이 다시 설치하면 일반 구성으로 돌아갑니다. 진단(`diag`) 결과에도 스위치 상태가 기록됩니다. K8 GL3 HEV에서 bridge 설치 시 유선·무선 CarPlay가 모두 안 되는 문제의 원인을 가리기 위한 것이며 실차 미확인입니다.
 - 설치 전 점검에서 순정 대상 파일 6개가 모두 등록된 원본과 다르면, 파일별 "공식 업데이트로 순정 복구" 안내 대신 미등록 차종·빌드(새 포트)로 판정하고 지원 요청 첨부를 안내합니다(`unregistered_build=yes`). 판정은 계속 설치 불가입니다.
 - 새 포트용 읽기 전용 순정 원본 수집 USB(`dist/usb-stock-dump`)와 PC 검증 도구(`tools/stock-dump/verify.py`)를 추가했습니다. `/system`을 읽기만 하고 USB에만 쓰며, 복사본을 MD5로 대조합니다. 실차 실행은 아직 확인하지 않았습니다. 자세한 내용은 `docs/stock-dump.md`를 참고하세요.
 - 설치 후·부트가드 복구 후 재부팅 명령 순서(`d_audio -c reboot force_normal` → `reboot force_normal` → `reboot`)를 mock 시험으로 확인합니다. 실제 헤드유닛에서 콜드부트가 되는지는 여전히 실차 미확인입니다.
